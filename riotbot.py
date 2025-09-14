@@ -40,7 +40,10 @@ CENSORED_WORDS = {
     "job": "j\*b",
     "occupation": "*cc\*p\*t\*\*n",
     "employment": "\*mpl\*ym\*nt",
-    "work": "w\*rk"
+    "work": "w\*rk",
+    "intern": "\*nt*rn",
+    "hire": "h*r*",
+    "interview": "*nt*rv**w"
 }
 
 uncensored_offenses = {} # {user_id: {"date": date, "count": int}}
