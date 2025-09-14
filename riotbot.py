@@ -15,6 +15,10 @@ TOKEN = os.getenv("DISCORD_TOKEN")
 
 keep_alive()
 
+HTMLPARSER = "html.parser"
+RIOT_PATCH_DIVCLASS = "sc-4d29e6fd-0 hzTXxn"
+PATCH_ERROR_MSG = "Could not fetch patch notes. Ping @zef to fix"
+
 intents = discord.Intents.default()
 intents.message_content = True
 intents.messages = True
@@ -34,7 +38,9 @@ async def on_ready():
     await bot.change_presence(activity=discord.CustomActivity(name='>help for commands'))
 
     #loops
-    bot.last_posted_patch = None
+    bot.last_posted_lol_patch = None
+    bot.last_posted_val_patch = None
+    bot.last_posted_tft_patch = None
     check_patch.start()
 
 # sends DM to member on join
@@ -99,7 +105,7 @@ def retrieve_rank(server: str, username: str):
     response = http.request("GET", url, decode_content=True)
     reply = response.data
 
-    soup = BeautifulSoup(reply, "html.parser")
+    soup = BeautifulSoup(reply, HTMLPARSER)
 
     meta_tag = soup.find("meta", {"property": "og:description"})
     if not meta_tag:
@@ -133,7 +139,7 @@ async def rank_command(ctx, server: str, *, username: str):
 
     if rankinfo is None:
         await ctx.send(f"Could not find rank info for **{username}** on {server.upper()}.\n"
-                       f"Either the summoner is unranked, or ping @zef coz bot has issues")
+                       f"Either the summoner is unranked, doesn't exist or ping @zef coz bot has issues")
     else:
         parts = overall_wr.split("Win rate")
         games_part = parts[0].strip()       # "104Win 93Lose"
@@ -189,7 +195,7 @@ async def blame_squid(ctx):
     await ctx.send(f"{user.mention} {chosen_message}")
 
 
-def get_latest_patch():
+def get_latest_lol_patch():
     http = urllib3.PoolManager()
     url = "https://www.leagueoflegends.com/en-us/news/tags/patch-notes/"
     response = http.request("GET", url, preload_content=True)
@@ -198,9 +204,9 @@ def get_latest_patch():
         return None, None
 
     html = response.data.decode("utf-8")
-    soup = BeautifulSoup(html, "html.parser")
+    soup = BeautifulSoup(html, HTMLPARSER)
 
-    container = soup.find("div", class_="sc-4d29e6fd-0 hzTXxn")
+    container = soup.find("div", class_=RIOT_PATCH_DIVCLASS)
     if not container:
         return None, None
 
@@ -212,7 +218,7 @@ def get_latest_patch():
     if href.startswith("/"):
         href = "https://www.leagueoflegends.com" + href
 
-    title = a.get("aria-label") or a.get_text(strip=True) or href
+    title = a.get("aria-label")
     return title, href
 
 @bot.command(name="lolpatchnotes")
@@ -220,25 +226,109 @@ async def lol_patchnotes(ctx):
     """
     Gets latest League of legends patch notes
     """
-    title, link = get_latest_patch()
+    title, link = get_latest_lol_patch()
     if not link:
-        await ctx.send("Could not fetch patch notes. Ping @zef to fix")
+        await ctx.send(PATCH_ERROR_MSG)
     else:
         await ctx.send(f"**{title}**\n{link}")
 
+def get_latest_val_patch():
+    http = urllib3.PoolManager()
+    url = "https://playvalorant.com/en-us/news/tags/patch-notes/"
+    response = http.request("GET", url, preload_content=True)
+
+    if response.status != 200:
+        return None, None
+
+    html = response.data.decode("utf-8")
+    soup = BeautifulSoup(html, HTMLPARSER)
+
+    container = soup.find("div", class_=RIOT_PATCH_DIVCLASS)
+    if not container:
+        return None, None
+
+    a = container.find("a")
+    if not a:
+        return None, None
+
+    href = a["href"]
+    if href.startswith("/"):
+        href = "https://playvalorant.com" + href
+
+    title = a.get("aria-label")
+    return title, href
+
+@bot.command(name="valpatchnotes")
+async def val_patchnotes(ctx):
+    """
+    Gets latest Valorant patch notes
+    """
+    title, link = get_latest_val_patch()
+    if not link:
+        await ctx.send(PATCH_ERROR_MSG)
+    else:
+        await ctx.send(f"**{title}**\n{link}")
+
+def get_latest_tft_patch():
+    http = urllib3.PoolManager()
+    url = "https://www.leagueoflegends.com/en-au/news/tags/teamfight-tactics-patch-notes/"
+    response = http.request("GET", url, preload_content=True)
+
+    if response.status != 200:
+        return None, None
+
+    html = response.data.decode("utf-8")
+    soup = BeautifulSoup(html, HTMLPARSER)
+
+    container = soup.find("div", class_=RIOT_PATCH_DIVCLASS)
+    if not container:
+        return None, None
+
+    a = container.find("a")
+    if not a:
+        return None, None
+
+    href = a["href"]
+
+    title = a.get("aria-label")
+    return title, href
+
+@bot.command(name="tftpatchnotes")
+async def tft_patchnotes(ctx):
+    """
+    Gets latest TFT patch notes
+    """
+    title, link = get_latest_tft_patch()
+    if not link:
+        await ctx.send(PATCH_ERROR_MSG)
+    else:
+        await ctx.send(f"**{title}**\n{link}")
+
+# Yes ik its bad code cry about it
 @tasks.loop(hours=6)
 async def check_patch():
-    global last_posted_patch
     channel = bot.get_channel(1050307222573428756)
     if channel is None:
         print("❌ Channel not found!")
         return
 
-    title, link = get_latest_patch()
+    title, link = get_latest_lol_patch()
 
-    if title != bot.last_posted_patch:
+    if title != bot.last_posted_lol_patch:
+        await channel.send(f"**LEAGUE OF LEGENDS {title}**\n{link}")
+        bot.last_posted_lol_patch = title
+
+    title, link = get_latest_val_patch()
+
+    if title != bot.last_posted_val_patch:
         await channel.send(f"**{title}**\n{link}")
-        bot.last_posted_patch = title
+        bot.last_posted_val_patch = title
+    
+    title, link = get_latest_tft_patch()
+
+    if title != bot.last_posted_tft_patch:
+        await channel.send(f"**{title}**\n{link}")
+        bot.last_posted_tft_patch = title
 
 @bot.command()
 @commands.has_role("Subcommittee")
