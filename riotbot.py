@@ -73,10 +73,10 @@ async def on_message(msg):
     if any(word in msg.content.lower() for word in CENSORED_WORDS):
         censored_text = censor_message(msg.content)
         await msg.channel.send(
-            f"This is {msg.author.mention}'s cleaned up text: {censored_text}"
+            f"I've censored {msg.author.mention}'s text: {censored_text}"
         )
         await msg.channel.send(
-            "Please be aware of your use of sensitive language, repeated offences may get you timed out."
+            "Please be mindful of sensitive language usage, repeated offences may get you timed out."
         )
         await msg.delete()
 
@@ -214,6 +214,17 @@ async def blame_squid(ctx):
 
     await ctx.send(f"{user.mention} {chosen_message}")
 
+@bot.command(name="msginternals")
+async def msg_internals(ctx, *, msg):
+    """
+    Sends a message to be responded to by exec/subcom
+    """
+    internal_channel = bot.get_channel(1284145136321826817)
+    if internal_channel is None:
+        ctx.send("Please ping @zef, command has failed")
+    else:
+        await ctx.send("Your message has been forwarded exec/subcom and you should be responded to soon.")
+        await internal_channel.send(f"Message from {ctx.author.mention}: {msg}")
 
 def get_latest_lol_patch():
     http = urllib3.PoolManager()
