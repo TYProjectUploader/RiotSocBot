@@ -23,7 +23,7 @@ intents.members = True
 bot = commands.Bot(command_prefix='>', intents=intents, 
                    help_command=commands.DefaultHelpCommand(no_category="Commands"))
 
-CENSORED_WORDS = {"job", "employment", "work"}
+CENSORED_WORDS = {"job", "employment", "work", "occupation"}
 
 uncensored_offenses = {} # {user_id: {"date": date, "count": int}}
 
@@ -64,7 +64,7 @@ async def on_message(msg):
         count = uncensored_offenses[user_id]["count"]
 
         if count >= 3:
-            until = datetime.now(timezone.utc) + timedelta(minutes=1)+ timedelta(minutes=1)
+            until = datetime.now(timezone.utc) + timedelta(minutes=1)
             await msg.channel.send(
                 f"{msg.author.mention}, you have been timed out for 1 minute "
                 f"due to repeated use of banned words."
