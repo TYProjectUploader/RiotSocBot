@@ -3,6 +3,7 @@ import os
 import discord
 import random
 import re
+import praw
 from discord.ext import commands, tasks
 from dotenv import load_dotenv
 from datetime import datetime, timedelta, timezone
@@ -14,6 +15,12 @@ import urllib3
 
 load_dotenv()
 TOKEN = os.getenv("DISCORD_TOKEN")
+
+reddit = praw.Reddit(
+    client_id = os.getenv("REDDIT_CLIENT_ID"),
+    client_secret= os.getenv("REDDIT_SECRET"),
+    user_agent=os.getenv('REDDIT_USER_AGENT')
+)
 
 keep_alive()
 
@@ -50,6 +57,7 @@ async def on_ready():
     bot.last_posted_val_patch = None
     bot.last_posted_tft_patch = None
     check_patch.start()
+    daily_meme.start()
 
 # sends DM to member on join
 @bot.event
@@ -360,6 +368,40 @@ async def check_patch():
     if title != bot.last_posted_tft_patch:
         await channel.send(f"**{title}**\n{link}")
         bot.last_posted_tft_patch = title
+
+def create_meme_embed(submission):
+    embed = discord.Embed(
+        title="Meme of the day",
+        description=submission.title,
+        url=f"https://reddit.com{submission.permalink}",
+        color=0xFF5700
+    )
+    
+    embed.set_image(url=submission.url)
+    
+    embed.set_author(
+        name="r/leagueofmemes",
+        icon_url="https://www.redditstatic.com/desktop2x/img/favicon/apple-icon-57x57.png",
+        url="https://reddit.com/r/leagueofmemes"
+    )
+    author = submission.author.name if submission.author else "[deleted]"
+    embed.set_footer(text=f"👤 u/{author}")
+    return embed
+
+
+@tasks.loop(hours=24)
+async def daily_meme():
+    meme_channel = bot.get_channel(1050306304083775558)
+    if meme_channel is None:
+        print("❌ Channel not found!")
+        return
+    submission = next(reddit.subreddit('leagueofmemes').top(time_filter='day', limit=1))
+
+    if submission and submission.url:
+        embed = create_meme_embed(submission)
+        await meme_channel.send(embed=embed)
+    else:
+        await meme_channel.send("ping @zef somethings gone wrong")
 
 @bot.command()
 @commands.has_role("Subcommittee")
