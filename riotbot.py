@@ -71,6 +71,10 @@ async def on_message(msg):
             )
             await msg.author.timeout(until, reason="Repeated not censoring of words")
 
+    if "kys" in msg.content.lower():
+        await msg.delete()
+        await msg.channel.send(f"{msg.author.mention} - keep that kind of language to ranked only please")
+
     await bot.process_commands(msg)
 
 
@@ -176,7 +180,7 @@ async def blame_squid(ctx):
         "clearly the reason everything is broken!",
         "didn’t even try to hide it this time!",
         "the legend behind today’s catastrophe!",
-        "fucked up again",
+        "messed up again",
         "definitely the one to blame, as usual!"
     ]
 
@@ -218,7 +222,7 @@ async def lol_patchnotes(ctx):
     """
     title, link = get_latest_patch()
     if not link:
-        await ctx.send("Could not fetch patch notes.")
+        await ctx.send("Could not fetch patch notes. Ping @zef to fix")
     else:
         await ctx.send(f"**{title}**\n{link}")
 
