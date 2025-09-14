@@ -224,7 +224,7 @@ async def msg_internals(ctx, *, msg):
         ctx.send("Please ping @zef, command has failed")
     else:
         await ctx.send("Your message has been forwarded exec/subcom and you should be responded to soon.")
-        await internal_channel.send(f"Message from {ctx.author.mention}: {msg}")
+        await internal_channel.send(f"Message from {ctx.author.mention} in {ctx.channel.mention}: {msg}")
 
 def get_latest_lol_patch():
     http = urllib3.PoolManager()
