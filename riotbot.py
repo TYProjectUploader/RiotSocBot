@@ -30,10 +30,10 @@ bot = commands.Bot(command_prefix='>', intents=intents,
                    help_command=commands.DefaultHelpCommand(no_category="Commands"))
 
 CENSORED_WORDS = {
-    "job": "j*b",
-    "occupation": "*cc*p*t**n",
-    "employment": "*mpl*ym*nt",
-    "work": "w*rk"
+    "job": "j\*b",
+    "occupation": "*cc\*p\*t\*\*n",
+    "employment": "\*mpl\*ym\*nt",
+    "work": "w\*rk"
 }
 
 uncensored_offenses = {} # {user_id: {"date": date, "count": int}}
