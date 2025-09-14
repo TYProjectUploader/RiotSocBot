@@ -1,6 +1,8 @@
+# Bot is awaiting riot api approval before fixing other stuff
 import os
 import discord
 import random
+import re
 from discord.ext import commands, tasks
 from dotenv import load_dotenv
 from datetime import datetime, timedelta, timezone
@@ -27,9 +29,15 @@ intents.members = True
 bot = commands.Bot(command_prefix='>', intents=intents, 
                    help_command=commands.DefaultHelpCommand(no_category="Commands"))
 
-CENSORED_WORDS = {"job", "employment", "work", "occupation"}
+CENSORED_WORDS = {
+    "job": "j*b",
+    "occupation": "*cc*p*t**n",
+    "employment": "*mpl*ym*nt",
+    "work": "w*rk"
+}
 
 uncensored_offenses = {} # {user_id: {"date": date, "count": int}}
+
 
 #startus
 @bot.event
@@ -51,14 +59,26 @@ async def on_member_join(member):
                       f"Please read our rules at {rules_channel} to get started\n"
                       "If you need help for anything at all feel free to message an exec or ping a subcom")
 
-# times people out for not censoring specific words
+
+def censor_message(content):
+    censored = content
+    for word, replacement in CENSORED_WORDS.items():
+        censored = re.sub(word, replacement, censored, flags=re.IGNORECASE)
+    return censored
+
 @bot.event
 async def on_message(msg):
     if msg.author == bot.user:
         return
     if any(word in msg.content.lower() for word in CENSORED_WORDS):
+        censored_text = censor_message(msg.content)
+        await msg.channel.send(
+            f"This is {msg.author.mention}'s cleaned up text: {censored_text}"
+        )
+        await msg.channel.send(
+            "Please be aware of your use of sensitive language, repeated offences may get you timed out."
+        )
         await msg.delete()
-        await msg.channel.send(f"{msg.author.mention} - please censor that!")
 
         user_id = msg.author.id
         today = datetime.now(timezone.utc).date()
