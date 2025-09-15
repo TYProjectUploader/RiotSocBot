@@ -40,10 +40,17 @@ CENSORED_WORDS = {
     "job": "j\*b",
     "occupation": "*cc\*p\*t\*\*n",
     "employment": "\*mpl\*ym\*nt",
+    "employed": "\*mpl\*y\*d",
     "work": "w\*rk",
-    "intern": "\*nt*rn",
-    "hire": "h*r*",
-    "interview": "*nt*rv**w"
+    "hire": "h\*r\*",
+    "interview": "\*nt\*rv\*\*w",
+    "intern": "\*nt\*rn",
+    "career": "c\*r\*\*r",
+    "resume": "r\*s\*m\*",
+    "employee": "\*mpl\*y\*\*",
+    "staff": "st\*ff",
+    "wage": "w\*g\*",
+    "salary": "s*\l\*ry",
 }
 
 uncensored_offenses = {} # {user_id: {"date": date, "count": int}}
@@ -87,7 +94,7 @@ async def on_message(msg):
             f"I've censored {msg.author.mention}'s text: {censored_text}"
         )
         await msg.channel.send(
-            "Please be mindful of sensitive language usage, repeated offences may get you timed out."
+            "Please be mindful of sensitive language usage"
         )
         await msg.delete()
 
@@ -103,9 +110,10 @@ async def on_message(msg):
         if count >= 3:
             until = datetime.now(timezone.utc) + timedelta(minutes=1)
             await msg.channel.send(
-                f"{msg.author.mention}, you have been timed out for 1 minute "
-                f"due to repeated use of banned words."
+                f"{msg.author.mention}, you have used insensitive words 3+ times today"
+                f"I would timeout you if I was able to"
             )
+            # Here's where timeout would work if I was properly given perms
             await msg.author.timeout(until, reason="Repeated not censoring of words")
 
     if "kys" in msg.content.lower():
@@ -225,8 +233,8 @@ async def blame_squid(ctx):
 
     await ctx.send(f"{user.mention} {chosen_message}")
 
-@bot.command(name="msginternals")
-async def msg_internals(ctx, *, msg):
+@bot.command(name="msgsubcom")
+async def msg_subcom(ctx, *, msg):
     """
     Sends a message to be responded to by exec/subcom
     """
