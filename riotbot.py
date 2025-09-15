@@ -37,20 +37,20 @@ bot = commands.Bot(command_prefix='>', intents=intents,
                    help_command=commands.DefaultHelpCommand(no_category="Commands"))
 
 CENSORED_WORDS = {
-    "job": "j\*b",
-    "occupation": "*cc\*p\*t\*\*n",
-    "employment": "\*mpl\*ym\*nt",
-    "employed": "\*mpl\*y\*d",
-    "work": "w\*rk",
-    "hire": "h\*r\*",
-    "interview": "\*nt\*rv\*\*w",
-    "intern": "\*nt\*rn",
-    "career": "c\*r\*\*r",
-    "resume": "r\*s\*m\*",
-    "employee": "\*mpl\*y\*\*",
-    "staff": "st\*ff",
-    "wage": "w\*g\*",
-    "salary": "s*\l\*ry",
+    "job": r"j\*b",
+    "occupation": r"*cc\*p\*t\*\*n",
+    "employment": r"\*mpl\*ym\*nt",
+    "employed": r"\*mpl\*y\*d",
+    "work": r"w\*rk",
+    "hire": r"h\*r\*",
+    "interview": r"\*nt\*rv\*\*w",
+    "intern": r"\*nt\*rn",
+    "career": r"c\*r\*\*r",
+    "resume": r"r\*s\*m\*",
+    "employee": r"\*mpl\*y\*\*",
+    "staff": r"st\*ff",
+    "wage": r"w\*g\*",
+    "salary": r"s\*l\*ry"
 }
 
 uncensored_offenses = {} # {user_id: {"date": date, "count": int}}
