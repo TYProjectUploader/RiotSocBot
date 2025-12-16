@@ -88,6 +88,15 @@ def censor_message(content):
 async def on_message(msg):
     if msg.author == bot.user:
         return
+    
+    if msg.mention_everyone:
+        await msg.delete()
+        await msg.channel.send(
+            f"{msg.author.mention} do not use @everyone or @here.",
+            delete_after=5
+        )
+        return
+    
     if any(word in msg.content.lower() for word in CENSORED_WORDS):
         censored_text = censor_message(msg.content)
         await msg.channel.send(
