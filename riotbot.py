@@ -92,7 +92,7 @@ async def on_message(msg):
     if msg.mention_everyone:
         await msg.delete()
         await msg.channel.send(
-            f"{msg.author.mention} do not use @everyone or @here.",
+            f"{msg.author.mention} do not use @ everyone or @ here.",
             delete_after=5
         )
         return
