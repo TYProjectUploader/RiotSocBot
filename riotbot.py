@@ -85,18 +85,27 @@ def censor_message(content):
     return censored
 
 @bot.event
-async def on_message_edit(before, after):
-    print(f"Edit detected! Content: '{after.content}'")
-    if any(word in after.content.lower() for word in CENSORED_WORDS):
-        censored_text = censor_message(after.content)
-        await after.channel.send(
-            f"I've censored {after.author.mention}'s text: {censored_text}"
-        )
-        await after.channel.send(
-            "Really? You thought that'd work?"
-        )
-        await after.channel.send(file=discord.File('neurosig.jpg'))
-        await after.delete()
+async def on_raw_message_edit(payload):
+    # 'data' contains raw dictionary of the edited message
+    data = payload.data
+    content = data.get('content', '').lower()
+    
+    if not content:
+        return
+
+    if any(word in content for word in CENSORED_WORDS):
+        channel = bot.get_channel(payload.channel_id)
+        message = await channel.fetch_message(payload.message_id)
+        
+        if message.author.bot:
+            return
+
+        censored_text = censor_message(message.content)
+        await channel.send(f"I've censored {message.author.mention}'s text: {censored_text}")
+        await channel.send("Really? You thought that'd work?")
+        await channel.send(file=discord.File('neurosig.jpg'))
+        
+        await message.delete()
 
 @bot.event
 async def on_message(msg):
