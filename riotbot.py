@@ -86,6 +86,7 @@ def censor_message(content):
 
 @bot.event
 async def on_message_edit(before, after):
+    print(f"Edit detected! Content: '{after.content}'")
     if any(word in after.content.lower() for word in CENSORED_WORDS):
         censored_text = censor_message(after.content)
         await after.channel.send(
