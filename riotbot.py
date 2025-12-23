@@ -85,6 +85,19 @@ def censor_message(content):
     return censored
 
 @bot.event
+async def on_message_edit(before, after):
+    if any(word in after.content.lower() for word in CENSORED_WORDS):
+        censored_text = censor_message(after.content)
+        await after.channel.send(
+            f"I've censored {after.author.mention}'s text: {censored_text}"
+        )
+        await after.channel.send(
+            "Really? You thought that'd work?"
+        )
+        await after.channel.send(file=discord.File('neurosig.jpg'))
+        await after.delete()
+
+@bot.event
 async def on_message(msg):
     if msg.author == bot.user:
         return
@@ -120,7 +133,7 @@ async def on_message(msg):
             until = datetime.now(timezone.utc) + timedelta(minutes=1)
             await msg.channel.send(
                 f"{msg.author.mention}, you have used insensitive words 3+ times today"
-                f"I would timeout you if I was able to"
+                f" I would timeout you if I was able to"
             )
             # Here's where timeout would work if I was properly given perms
             await msg.author.timeout(until, reason="Repeated not censoring of words")
