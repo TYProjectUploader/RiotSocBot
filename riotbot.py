@@ -188,7 +188,7 @@ async def on_message(msg):
         saj = random.choice(responses)
         await msg.channel.send(f"{saj}")
 
-        await bot.process_commands(msg)
+    await bot.process_commands(msg)
 
 
 def clean_rank(rank_str):
