@@ -4,6 +4,8 @@ import discord
 import random
 import re
 import praw
+import json
+
 from discord.ext import commands, tasks
 from dotenv import load_dotenv
 from datetime import datetime, timedelta, timezone
@@ -59,15 +61,9 @@ uncensored_offenses = {} # {user_id: {"date": date, "count": int}}
 #startus
 @bot.event
 async def on_ready():
-    print(f"{bot.user.name} is online")
     await bot.change_presence(activity=discord.CustomActivity(name='>help for commands'))
 
-    #loops
-    bot.last_posted_lol_patch = None
-    bot.last_posted_val_patch = None
-    bot.last_posted_tft_patch = None
-    check_patch.start()
-    daily_meme.start()
+
 
 # sends DM to member on join
 @bot.event
@@ -306,17 +302,16 @@ async def blame_squid(ctx):
 
     await ctx.send(f"{user.mention} {chosen_message}")
 
-@bot.command(name="msgsubcom")
-async def msg_subcom(ctx, *, msg):
-    """
-    Sends a message to be responded to by exec/subcom
-    """
-    internal_channel = bot.get_channel(1284145136321826817)
-    if internal_channel is None:
-        ctx.send("Please ping @zef, command has failed")
-    else:
-        await ctx.send("Your message has been forwarded exec/subcom and you should be responded to soon.")
-        await internal_channel.send(f"Message from {ctx.author.mention} in {ctx.channel.mention}: {msg}")
+## addd stuff to actually persist once raspberry pi online
+def get_persist():
+    with open("data.json", "r") as f:
+        return json.load(f)
+    
+def update_persist(key, value):
+    data = get_persist()
+    data[key] = value
+    with open("data.json", "w") as f:
+        json.dump(data, f)
 
 def get_latest_lol_patch():
     http = urllib3.PoolManager()
