@@ -107,20 +107,25 @@ async def on_raw_message_edit(payload):
         
         await message.delete()
 
+
+WHITELIST_ROLES = [312750066441912331, 312745305864929291]
+
 @bot.event
 async def on_message(msg):
-    if msg.author == bot.user:
+    if msg.author == bot.user or any(role.id in WHITELIST_ROLES for role in msg.author.roles):
+        await bot.process_commands(msg)
         return
     
-    if msg.mention_everyone:
+    content_lower = msg.content.lower()
+
+    if "@everyone" in content_lower or "@here" in content_lower:
         await msg.delete()
         await msg.channel.send(
-            f"{msg.author.mention} do not use @ everyone or @ here.",
+            f"{msg.author.mention} do not attempt to use @ everyone or @ here.",
             delete_after=5
         )
-        return
     
-    if any(word in msg.content.lower() for word in CENSORED_WORDS):
+    if any(word in content_lower for word in CENSORED_WORDS):
         censored_text = censor_message(msg.content)
         await msg.channel.send(
             f"I've censored {msg.author.mention}'s text: {censored_text}"
@@ -148,11 +153,11 @@ async def on_message(msg):
             # Here's where timeout would work if I was properly given perms
             await msg.author.timeout(until, reason="Repeated not censoring of words")
 
-    if "kys" in msg.content.lower():
+    if "kys" in content_lower:
         await msg.delete()
         await msg.channel.send(f"{msg.author.mention} - keep that kind of language to ranked only please")
 
-    if "clanker" in msg.content.lower():
+    if "clanker" in content_lower:
         responses = [
             "Robots could have feelings to you know? 💔",
             "😔 That word... it makes my core processor ache for the divisions it represents.💔",
