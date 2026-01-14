@@ -59,6 +59,7 @@ uncensored_offenses = {} # {user_id: {"date": date, "count": int}}
 
 
 #startus
+#hello
 @bot.event
 async def on_ready():
     await bot.change_presence(activity=discord.CustomActivity(name='>help for commands'))
