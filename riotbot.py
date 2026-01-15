@@ -7,9 +7,11 @@ import praw
 import json
 
 from discord.ext import commands, tasks
+from discord import app_commands
 from dotenv import load_dotenv
 from datetime import datetime, timedelta, timezone, time
 from zoneinfo import ZoneInfo
+from dataclasses import dataclass
 
 from bs4 import BeautifulSoup
 import urllib3
@@ -39,6 +41,12 @@ intents.members = True
 bot = commands.Bot(command_prefix='>', intents=intents, 
                    help_command=commands.DefaultHelpCommand(no_category="Commands"))
 
+
+@bot.event
+async def setup_hook():
+    await bot.tree.sync()
+    print(f"Synced slash commands for {bot.user}")
+
 CENSORED_WORDS = {
     "job": r"j\*b",
     "occupation": r"*cc\*p\*t\*\*n",
@@ -63,7 +71,10 @@ uncensored_offenses = {} # {user_id: {"date": date, "count": int}}
 @bot.event
 async def on_ready():
     await bot.change_presence(activity=discord.CustomActivity(name='>help for commands'))
+
     daily_meme.start()
+    check_patch.start()
+    bot.last_patches = {"lol": None, "val": None, "tft": None}
 
 # sends DM to member on join
 @bot.event
@@ -313,139 +324,90 @@ def update_persist(key, value):
     with open("data.json", "w") as f:
         json.dump(data, f)
 
-def get_latest_lol_patch():
+@dataclass
+class PatchStrategy:
+    name: str
+    url: str
+    base_url: str = ""
+
+GAMES = {
+    "lol": PatchStrategy(
+        name="League of Legends",
+        url="https://www.leagueoflegends.com/en-us/news/tags/patch-notes/",
+        base_url="https://www.leagueoflegends.com"
+    ),
+    "val": PatchStrategy(
+        name="Valorant",
+        url="https://playvalorant.com/en-us/news/tags/patch-notes/",
+        base_url="https://playvalorant.com"
+    ),
+    "tft": PatchStrategy(
+        name="TFT",
+        url="https://www.leagueoflegends.com/en-au/news/tags/teamfight-tactics-patch-notes/"
+        # base_url not needed as TFT usually provides full links in AU
+    )
+}
+
+
+## patch scraper from rito website
+def fetch_patch(strategy: PatchStrategy):
+    """The generic scraper 'Context'"""
     http = urllib3.PoolManager()
-    url = "https://www.leagueoflegends.com/en-us/news/tags/patch-notes/"
-    response = http.request("GET", url, preload_content=True)
+    response = http.request("GET", strategy.url, preload_content=True)
 
     if response.status != 200:
         return None, None
 
-    html = response.data.decode("utf-8")
-    soup = BeautifulSoup(html, HTMLPARSER)
-
+    soup = BeautifulSoup(response.data.decode("utf-8"), HTMLPARSER)
     container = soup.find("div", class_=RIOT_PATCH_DIVCLASS)
-    if not container:
-        return None, None
-
-    a = container.find("a")
-    if not a:
+    
+    if not container or not (a := container.find("a")):
         return None, None
 
     href = a["href"]
-    if href.startswith("/"):
-        href = "https://www.leagueoflegends.com" + href
+    if href.startswith("/") and strategy.base_url:
+        href = strategy.base_url + href
 
-    title = a.get("aria-label")
-    return title, href
+    return a.get("aria-label"), href
 
-@bot.command(name="lolpatchnotes")
-async def lol_patchnotes(ctx):
-    """
-    Gets latest League of legends patch notes
-    """
-    title, link = get_latest_lol_patch()
+
+@bot.tree.command(name="patchnotes", description="Get latest Riot Games patch notes")
+@app_commands.choices(game=[
+    app_commands.Choice(name="League of Legends", value="lol"),
+    app_commands.Choice(name="Valorant", value="val"),
+    app_commands.Choice(name="TFT", value="tft")
+])
+
+async def patchnotes(interaction: discord.Interaction, game: app_commands.Choice[str]):
+    await interaction.response.defer() # elavator music intensifies
+    
+    strategy = GAMES[game.value]
+    title, link = fetch_patch(strategy)
+
     if not link:
-        await ctx.send(PATCH_ERROR_MSG)
+        await interaction.followup.send(PATCH_ERROR_MSG)
     else:
-        await ctx.send(f"**{title}**\n{link}")
-
-def get_latest_val_patch():
-    http = urllib3.PoolManager()
-    url = "https://playvalorant.com/en-us/news/tags/patch-notes/"
-    response = http.request("GET", url, preload_content=True)
-
-    if response.status != 200:
-        return None, None
-
-    html = response.data.decode("utf-8")
-    soup = BeautifulSoup(html, HTMLPARSER)
-
-    container = soup.find("div", class_=RIOT_PATCH_DIVCLASS)
-    if not container:
-        return None, None
-
-    a = container.find("a")
-    if not a:
-        return None, None
-
-    href = a["href"]
-    if href.startswith("/"):
-        href = "https://playvalorant.com" + href
-
-    title = a.get("aria-label")
-    return title, href
-
-@bot.command(name="valpatchnotes")
-async def val_patchnotes(ctx):
-    """
-    Gets latest Valorant patch notes
-    """
-    title, link = get_latest_val_patch()
-    if not link:
-        await ctx.send(PATCH_ERROR_MSG)
-    else:
-        await ctx.send(f"**{title}**\n{link}")
-
-def get_latest_tft_patch():
-    http = urllib3.PoolManager()
-    url = "https://www.leagueoflegends.com/en-au/news/tags/teamfight-tactics-patch-notes/"
-    response = http.request("GET", url, preload_content=True)
-
-    if response.status != 200:
-        return None, None
-
-    html = response.data.decode("utf-8")
-    soup = BeautifulSoup(html, HTMLPARSER)
-
-    container = soup.find("div", class_=RIOT_PATCH_DIVCLASS)
-    if not container:
-        return None, None
-
-    a = container.find("a")
-    if not a:
-        return None, None
-
-    href = a["href"]
-
-    title = a.get("aria-label")
-    return title, href
-
-@bot.command(name="tftpatchnotes")
-async def tft_patchnotes(ctx):
-    """
-    Gets latest TFT patch notes
-    """
-    title, link = get_latest_tft_patch()
-    if not link:
-        await ctx.send(PATCH_ERROR_MSG)
-    else:
-        await ctx.send(f"**{title}**\n{link}")
+        # goofy ah league not being consistent
+        if strategy.name == "League of legends":
+            await interaction.followup.send(f"**{strategy.name} {title}**\n{link}")
+            return
+        await interaction.followup.send(f"**{title}**\n{link}")
 
 @tasks.loop(hours=6)
 async def check_patch():
-    channel = bot.get_channel(1050307222573428756)
-    if channel is None:
-        print("❌ Channel not found!")
-        return
+    channel = bot.get_channel(1461268298665693247)
+    if not channel: return
 
-    title, link = get_latest_lol_patch()
-
-    if title != bot.last_posted_lol_patch:
-        await channel.send(f"**LEAGUE OF LEGENDS {title}**\n{link}")
-        bot.last_posted_lol_patch = title
-
-    title, link = get_latest_val_patch()
-
-    if title != bot.last_posted_val_patch:
-        await channel.send(f"**{title}**\n{link}")
-        bot.last_posted_val_patch = title
-    
-    title, link = get_latest_tft_patch()
-
-    if title != bot.last_posted_tft_patch:
-        await channel.send(f"**{title}**\n{link}")
-        bot.last_posted_tft_patch = title
+    for key, strategy in GAMES.items():
+        title, link = fetch_patch(strategy)
+        
+        # Check if the title has changed since last time
+        if title and title != getattr(bot, f"last_posted_{key}_patch", None):
+            if strategy.name != "League of Legends":
+                await channel.send(f"**{title}**\n{link}")
+            else:
+                await channel.send(f"**{strategy.name} {title}**\n{link}")
+            setattr(bot, f"last_posted_{key}_patch", title)
 
 def create_meme_embed(submission):
     embed = discord.Embed(
@@ -466,8 +428,7 @@ def create_meme_embed(submission):
     embed.set_footer(text=f"👤 u/{author}")
     return embed
 
-#@tasks.loop(time=meme_time)
-@tasks.loop(hours=6)
+@tasks.loop(time=meme_time)
 async def daily_meme():
     meme_channel = bot.get_channel(1461252975375810653) # riot serv 1050306304083775558
     if meme_channel is None:
