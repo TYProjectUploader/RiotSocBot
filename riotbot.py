@@ -8,9 +8,8 @@ import json
 
 from discord.ext import commands, tasks
 from dotenv import load_dotenv
-from datetime import datetime, timedelta, timezone
-
-from keep_alive import keep_alive
+from datetime import datetime, timedelta, timezone, time
+from zoneinfo import ZoneInfo
 
 from bs4 import BeautifulSoup
 import urllib3
@@ -21,10 +20,12 @@ TOKEN = os.getenv("DISCORD_TOKEN")
 reddit = praw.Reddit(
     client_id = os.getenv("REDDIT_CLIENT_ID"),
     client_secret= os.getenv("REDDIT_SECRET"),
-    user_agent=os.getenv('REDDIT_USER_AGENT')
+    user_agent=os.getenv('REDDIT_USER_AGENT'),
+    check_for_async=False
 )
 
-keep_alive()
+aedt_timezone = ZoneInfo("Australia/Sydney")
+meme_time = time(hour=9, minute=0, tzinfo=aedt_timezone)
 
 HTMLPARSER = "html.parser"
 RIOT_PATCH_DIVCLASS = "sc-4d29e6fd-0 hzTXxn"
@@ -62,8 +63,7 @@ uncensored_offenses = {} # {user_id: {"date": date, "count": int}}
 @bot.event
 async def on_ready():
     await bot.change_presence(activity=discord.CustomActivity(name='>help for commands'))
-
-
+    daily_meme.start()
 
 # sends DM to member on join
 @bot.event
@@ -422,7 +422,6 @@ async def tft_patchnotes(ctx):
     else:
         await ctx.send(f"**{title}**\n{link}")
 
-# Yes ik its bad code cry about it
 @tasks.loop(hours=6)
 async def check_patch():
     channel = bot.get_channel(1050307222573428756)
@@ -455,7 +454,7 @@ def create_meme_embed(submission):
         url=f"https://reddit.com{submission.permalink}",
         color=0xFF5700
     )
-    
+
     embed.set_image(url=submission.url)
     
     embed.set_author(
@@ -467,20 +466,27 @@ def create_meme_embed(submission):
     embed.set_footer(text=f"👤 u/{author}")
     return embed
 
-
-@tasks.loop(hours=24)
+#@tasks.loop(time=meme_time)
+@tasks.loop(hours=6)
 async def daily_meme():
-    meme_channel = bot.get_channel(1050306304083775558)
+    meme_channel = bot.get_channel(1461252975375810653) # riot serv 1050306304083775558
     if meme_channel is None:
         print("❌ Channel not found!")
         return
-    submission = next(reddit.subreddit('leagueofmemes').top(time_filter='day', limit=1))
+
+    submission = next(
+        (s for s in reddit.subreddit('leagueofmemes').top(time_filter='day', limit=10)
+        if not s.is_video 
+        and not s.is_self 
+        and not hasattr(s, 'is_gallery')), 
+        None
+    )
 
     if submission and submission.url:
         embed = create_meme_embed(submission)
         await meme_channel.send(embed=embed)
     else:
-        await meme_channel.send("ping @zef somethings gone wrong")
+        await meme_channel.send("No meme today :P")
 
 @bot.command()
 @commands.has_role("Subcommittee")
