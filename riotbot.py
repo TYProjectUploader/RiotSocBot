@@ -39,7 +39,7 @@ intents.messages = True
 intents.members = True
 
 bot = commands.Bot(command_prefix='>', intents=intents, 
-                   help_command=commands.DefaultHelpCommand(no_category="Commands"))
+                   help_command=None)
 
 
 @bot.event
@@ -70,7 +70,7 @@ uncensored_offenses = {} # {user_id: {"date": date, "count": int}}
 #start
 @bot.event
 async def on_ready():
-    await bot.change_presence(activity=discord.CustomActivity(name='>help for commands'))
+    await bot.change_presence(activity=discord.CustomActivity(name='/help for commands'))
 
     daily_meme.start()
     check_patch.start()
@@ -110,12 +110,18 @@ async def on_raw_message_edit(payload):
         censored_text = censor_message(message.content)
         await channel.send(f"I've censored {message.author.mention}'s text: {censored_text}")
         await channel.send("Really? You thought that'd work?")
-        await channel.send(file=discord.File('neurosig.jpg'))
+        await channel.send(file=discord.File('neurosig.jpg'), delete_after=5)
         
         await message.delete()
 
 
-WHITELIST_ROLES = [312750066441912331, 312745305864929291]
+WHITELIST_ROLES = [
+    int(v) for v in (
+        os.getenv("EXEC_ROLE_ID"),
+        os.getenv("SUBCOM_ROLE_ID"),
+        os.getenv("DIRECTOR_ROLE_ID"),
+    )
+]
 
 @bot.event
 async def on_message(msg):
@@ -154,11 +160,13 @@ async def on_message(msg):
         if count >= 3:
             until = datetime.now(timezone.utc) + timedelta(minutes=1)
             await msg.channel.send(
-                f"{msg.author.mention}, you have used insensitive words 3+ times today"
-                f" I would timeout you if I was able to"
+                f"{msg.author.mention}, you have used insensitive words 3+ times today. "
+                f"I would timeout you if I was able to."
             )
-            # Here's where timeout would work if I was properly given perms
-            await msg.author.timeout(until, reason="Repeated not censoring of words")
+            try:
+                await msg.author.timeout(until, reason="Repeated not censoring of words")
+            except discord.Forbidden:
+                pass
 
     if "kys" in content_lower:
         await msg.delete()
@@ -202,16 +210,69 @@ async def on_message(msg):
 
     await bot.process_commands(msg)
 
+# --- Slash Commands ---
+@bot.tree.command(name="help", description="Displays all available bot commands")
+async def help_command(interaction: discord.Interaction):
+    embed = discord.Embed(
+        title="RiotSoc Bot", 
+        description="Here is a list of all available slash commands",
+        color=discord.Color.blue()
+    )
+    
+    commands_list = bot.tree.get_commands()
+    
+    for cmd in commands_list:
+        embed.add_field(
+            name=f"/{cmd.name}", 
+            value=cmd.description or "Description N/A", 
+            inline=False
+        )
+    await interaction.response.send_message(embed=embed)
+
+@bot.tree.command(name="rank", description="Get a summoner's rank and winrate")
+@app_commands.describe(server="The server region (e.g., na, euw, kr, oce)", username="Summoner Name with Tag (Name#Tag)")
+async def rank(interaction: discord.Interaction, server: str, username: str):
+    await interaction.response.defer()
+
+    rankinfo, overall_wr = retrieve_rank(server, username.replace("#", "-"))
+
+    if rankinfo is None:
+        await interaction.followup.send(f"Could not find rank info for **{username}** on {server.upper()}.\n"
+                       f"Either the summoner doesn't exist, you mispelt something or ping @zef coz bot has issues")
+    elif rankinfo == "Unranked":
+        await interaction.followup.send(f"**{username}** is Unranked.")
+    else:
+        parts = overall_wr.split("Win rate")
+        games_part = parts[0].strip()       # "104Win 93Lose"
+        winrate_part = parts[1].strip()     # "53%"
+
+        winrate_num = int(winrate_part.rstrip("%"))
+
+        emoji = "🥀" if winrate_num < 50 else "🎉"
+
+        embed = discord.Embed(
+            title=f"{username} ({server.upper()})",
+            description=f"{rankinfo} \n Win rate {winrate_part} {emoji} \n {games_part}",
+            color=discord.Color.blue()
+        )
+        await interaction.followup.send(embed=embed)
+
 
 def clean_rank(rank_str):
     """
     Converts "rank tier ??randomno LP" -> "rank tier LP"
     """
     parts = rank_str.split()  # ['Platinum', '4', '4', '0LP']
-    if len(parts) == 4:
-        return f"{parts[0]} {parts[1]} {parts[3]}"
-    elif len(parts) == 3:
-        return f"{parts[0]} {parts[2]}"
+
+    match len(parts):
+        case 4:
+            return f"{parts[0]} {parts[1]} {parts[3]}"
+        case 3:
+            return f"{parts[0]} {parts[2]}"
+        case 2:
+            return "Unranked"
+        case _:
+            return None
 
 
 # ----------------------------
@@ -244,53 +305,11 @@ def retrieve_rank(server: str, username: str):
 
     return rank_info, overall_wr
 
-
-#rank scraper
-@bot.command(name="rank")
-async def rank_command(ctx, server: str, *, username: str):
-    """
-    Gives rank of a summoner >help rank for format
-    """
-
-    await ctx.send(f"Fetching rank for **{username}** on **{server.upper()}**...")
-
-    rankinfo, overall_wr = retrieve_rank(server, username.replace("#", "-"))
-
-    if rankinfo is None:
-        await ctx.send(f"Could not find rank info for **{username}** on {server.upper()}.\n"
-                       f"Either the summoner is unranked, doesn't exist or ping @zef coz bot has issues")
-    else:
-        parts = overall_wr.split("Win rate")
-        games_part = parts[0].strip()       # "104Win 93Lose"
-        winrate_part = parts[1].strip()     # "53%"
-
-        winrate_num = int(winrate_part.rstrip("%"))
-
-        emoji = "🥀" if winrate_num < 50 else "🎉"
-
-        embed = discord.Embed(
-            title=f"{username} ({server.upper()})",
-            description=f"{rankinfo} \n Win rate {winrate_part} {emoji} \n {games_part}",
-            color=discord.Color.blue()
-        )
-        await ctx.send(embed=embed)
-
-@rank_command.error
-async def rank_error(ctx, error):
-    if isinstance(error, commands.MissingRequiredArgument):
-        await ctx.send("❌ Check your formatting!\n"
-                       "Usage: `>rank <server> <username#RiotTag>`\n"
-                       "Example: `>rank na Faker#NA1`")
-
-@bot.command(name="blame")
-async def blame_squid(ctx):
-    """
-    Blames a random squid
-    """
-    await ctx.message.delete()
+@bot.tree.command(name="blame", description="Blame a random squid for everything")
+async def blame(interaction: discord.Interaction):
     squids = [467683010213314560, 443721622965452810]
     chosen_id = random.choice(squids)
-    user = await bot.fetch_user(chosen_id)
+
     blame_messages = [
         "is responsible for this chaos!",
         "did it again, blame them!",
@@ -311,7 +330,8 @@ async def blame_squid(ctx):
 
     chosen_message = random.choice(blame_messages)
 
-    await ctx.send(f"{user.mention} {chosen_message}")
+    await interaction.response.send_message("Consider it done.", ephemeral=True)
+    await interaction.channel.send(f"<@{chosen_id}> {chosen_message}")
 
 ## addd stuff to actually persist once raspberry pi online
 def get_persist():
@@ -448,15 +468,5 @@ async def daily_meme():
         await meme_channel.send(embed=embed)
     else:
         await meme_channel.send("No meme today :P")
-
-@bot.command()
-@commands.has_role("Subcommittee")
-async def secretcmd(ctx):
-    await ctx.send("You have access, this does nothing xd")
-
-@secretcmd.error 
-async def secrectcmd_error(ctx, error):
-    if isinstance(error, commands.MissingRole):
-        await ctx.send("You don't have perms to do that")
 
 bot.run(TOKEN)
