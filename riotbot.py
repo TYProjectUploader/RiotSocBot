@@ -38,7 +38,7 @@ intents.message_content = True
 intents.messages = True
 intents.members = True
 
-bot = commands.Bot(command_prefix='>', intents=intents, 
+bot = commands.Bot(command_prefix=None, intents=intents, 
                    help_command=None)
 
 
@@ -333,7 +333,6 @@ async def blame(interaction: discord.Interaction):
     await interaction.response.send_message("Consider it done.", ephemeral=True)
     await interaction.channel.send(f"<@{chosen_id}> {chosen_message}")
 
-## addd stuff to actually persist once raspberry pi online
 def get_persist():
     if not os.path.exists("data.json"):
         return {}
