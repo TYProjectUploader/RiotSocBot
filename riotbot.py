@@ -335,14 +335,19 @@ async def blame(interaction: discord.Interaction):
 
 ## addd stuff to actually persist once raspberry pi online
 def get_persist():
+    if not os.path.exists("data.json"):
+        return {}
     with open("data.json", "r") as f:
-        return json.load(f)
+        try:
+            return json.load(f)
+        except json.JSONDecodeError:
+            return {}
     
 def update_persist(key, value):
     data = get_persist()
     data[key] = value
     with open("data.json", "w") as f:
-        json.dump(data, f)
+        json.dump(data, f, indent=4)
 
 @dataclass
 class PatchStrategy:
@@ -418,16 +423,20 @@ async def check_patch():
     channel = bot.get_channel(1461268298665693247)
     if not channel: return
 
+    persisted_data = get_persist()
+
     for key, strategy in GAMES.items():
         title, link = fetch_patch(strategy)
         
+        last_patch = persisted_data.get(f"last_patch_{key}")
+
         # Check if the title has changed since last time
-        if title and title != getattr(bot, f"last_posted_{key}_patch", None):
+        if title and title != last_patch:
             if strategy.name != "League of Legends":
                 await channel.send(f"**{title}**\n{link}")
             else:
                 await channel.send(f"**{strategy.name} {title}**\n{link}")
-            setattr(bot, f"last_posted_{key}_patch", title)
+            update_persist(f"last_patch_{key}", title)
 
 def create_meme_embed(submission):
     embed = discord.Embed(
