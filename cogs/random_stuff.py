@@ -1,9 +1,11 @@
 import discord
 from discord.ext import commands
 from discord import app_commands
+from pathlib import Path
+import asyncio
 import random
 
-class Fun(commands.Cog):
+class RandomStuff(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
 
@@ -35,5 +37,25 @@ class Fun(commands.Cog):
         await interaction.response.send_message("Consider it done.", ephemeral=True)
         await interaction.channel.send(f"<@{chosen_id}> {random.choice(blame_messages)}")
 
+    @app_commands.command(name="bad-apple", description="Why wouldn't this be a feature?")
+    async def bad_apple(self, interaction: discord.Interaction):
+        file_path = Path.cwd() / "data" / "badapplegifs.txt"
+
+        with open(file_path, "r") as file:
+            urls = file.read().splitlines()
+
+        await interaction.response.send_message(urls[0])
+
+        try:
+            for url in urls[1:]:
+                await asyncio.sleep(9.9)
+                await interaction.edit_original_response(content=url)
+        except discord.NotFound:
+            # In case message is deleted
+            await interaction.channel.send("Who tf interrupted my bad apple?")
+            return
+
+        await interaction.delete_original_response()
+
 async def setup(bot):
-    await bot.add_cog(Fun(bot))
+    await bot.add_cog(RandomStuff(bot))

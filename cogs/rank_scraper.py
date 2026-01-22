@@ -35,7 +35,7 @@ class RankScraper(commands.Cog):
         overall_wr = parts[2] if len(parts) > 2 else "Unknown"
         return rank_info, overall_wr
 
-    @app_commands.command(name="rank", description="Get a summoner's rank and winrate")
+    @app_commands.command(name="lolrank", description="Get a summoner's rank and winrate")
     @app_commands.describe(server="The server region", username="Summoner Name#Tag")
     async def rank(self, interaction: discord.Interaction, server: str, username: str):
         await interaction.response.defer()
