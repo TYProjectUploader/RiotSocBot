@@ -1,6 +1,7 @@
 import discord
 import re
 import os
+import random
 from discord.ext import commands
 from datetime import datetime, timedelta, timezone
 
