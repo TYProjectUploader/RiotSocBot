@@ -2,12 +2,21 @@ import discord
 from discord.ext import commands
 from discord import app_commands
 from pathlib import Path
+from google import genai
+from google.genai import types
 import asyncio
 import random
+import os
 
 class RandomStuff(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
+        self.client = genai.Client(api_key=os.getenv("GEMINI_API"))
+        self.model_id = "gemini-2.0-flash" 
+
+        prompt_file = Path.cwd() / "data" / "system_prompt.txt"
+        with open(prompt_file, "r", encoding="utf-8") as file:
+            self.system_prompt = file.read().strip()
 
 
     @app_commands.command(name="blame", description="Blame a random squid for everything")
@@ -56,6 +65,29 @@ class RandomStuff(commands.Cog):
             return
 
         await interaction.delete_original_response()
+
+    @commands.Cog.listener()
+    async def on_message(self, msg):
+        if msg.author == self.bot.user:
+            return
+
+        if self.bot.user.mentioned_in(msg):
+            async with msg.channel.typing():
+                try:
+                    user_input = msg.content.replace(f'<@{self.bot.user.id}>', '').strip()
+                    
+                    # GEMINI MAGIC
+                    response = self.client.models.generate_content(
+                        model=self.model_id,
+                        config=types.GenerateContentConfig(
+                            system_instruction=self.system_prompt
+                        ),
+                        contents=user_input
+                    )
+                    # Cull to 2k discord char limit
+                    await msg.reply(response.text[:2000])
+                except Exception as e:
+                    await msg.reply(f"Error: {str(e)}")
 
 async def setup(bot):
     await bot.add_cog(RandomStuff(bot))
