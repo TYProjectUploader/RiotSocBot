@@ -4,6 +4,8 @@ from discord import app_commands
 from pathlib import Path
 from google import genai
 from google.genai import types
+from mistralai import Mistral
+from owoify.owoify import owoify, Owoness
 import asyncio
 import random
 import os
@@ -11,8 +13,10 @@ import os
 class RandomStuff(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
-        self.client = genai.Client(api_key=os.getenv("GEMINI_API"))
-        self.model_id = "gemini-2.5-flash" 
+        # self.client = genai.Client(api_key=os.getenv("GEMINI_API"))
+        # self.model_id = "gemini-2.5-flash" 
+        self.mistral_client = Mistral(api_key=os.getenv("MISTRAL_API"))
+        self.model_id = "mistral-medium-latest"
 
         prompt_file = Path.cwd() / "data" / "system_prompt.txt"
         with open(prompt_file, "r", encoding="utf-8") as file:
@@ -76,20 +80,33 @@ class RandomStuff(commands.Cog):
                 try:
                     user_input = msg.content.replace(f'<@{self.bot.user.id}>', '').strip()
                     
-                    # GEMINI MAGIC
+                    """ # GEMINI MAGIC
                     response = self.client.models.generate_content(
                         model=self.model_id,
                         config=types.GenerateContentConfig(
                             system_instruction=self.system_prompt
                         ),
                         contents=user_input
-                    )
-                    # Cull to 2k discord char limit
+                    ) """
 
+                    # response is in json.
+                    response = await self.mistral_client.chat.complete_async(
+                        model=self.model_id,
+                        messages=[
+                            {"role": "system", "content": self.system_prompt},
+                            {"role": "user", "content": user_input}
+                        ]
+                    )
+                    response_text = response.choices[0].message.content
+
+                    # owoness is specified with strings, i.e. owo, uwu, and uvu.
+                    response_text = owoify(response_text, Owoness.Uvu)
+
+                    # Cull to 2k discord char limit
                     try: 
-                        await msg.reply(response.text[:2000])
+                        await msg.reply(response_text[:2000])
                     except:
-                        await interaction.channel.send("Message being responded to has been deleted")
+                        await msg.channel.send("Message being responded to has been deleted")
                 except Exception as e:
                     await msg.reply(f"Error: {str(e)}")
 
