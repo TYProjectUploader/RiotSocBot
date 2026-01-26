@@ -23,7 +23,8 @@ class PatchScraper(commands.Cog):
         self.GAMES = {
             "lol": PatchStrategy("League of Legends", "https://www.leagueoflegends.com/en-us/news/tags/patch-notes/", "https://www.leagueoflegends.com"),
             "val": PatchStrategy("Valorant", "https://playvalorant.com/en-us/news/tags/patch-notes/", "https://playvalorant.com"),
-            "tft": PatchStrategy("TFT", "https://www.leagueoflegends.com/en-au/news/tags/teamfight-tactics-patch-notes/")
+            "tft": PatchStrategy("TFT", "https://www.leagueoflegends.com/en-au/news/tags/teamfight-tactics-patch-notes/"),
+            "riftbd": PatchStrategy("Riftbound", "https://riftbound.leagueoflegends.com/en-us/news", "https://riftbound.leagueoflegends.com")
         }
         
         self.check_patch.start()
@@ -49,7 +50,8 @@ class PatchScraper(commands.Cog):
     @app_commands.choices(game=[
         app_commands.Choice(name="League of Legends", value="lol"),
         app_commands.Choice(name="Valorant", value="val"),
-        app_commands.Choice(name="TFT", value="tft")
+        app_commands.Choice(name="TFT", value="tft"),
+        app_commands.Choice(name="Riftbound", value = "riftbd")
     ])
     async def patchnotes(self, interaction: discord.Interaction, game: app_commands.Choice[str]):
         await interaction.response.defer()
