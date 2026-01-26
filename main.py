@@ -25,6 +25,9 @@ class RiotSocBot(commands.Bot):
             if filename.endswith('.py'):
                 await self.load_extension(f'cogs.{filename[:-3]}')
         
+        # Sync test server
+        """ guild_obj = discord.Object(id=1413504927996706909)
+        await self.tree.sync(guild=guild_obj) """
         await self.tree.sync()
         print(f"Synced slash commands for {self.user}")
 

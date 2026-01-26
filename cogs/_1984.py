@@ -94,7 +94,7 @@ class _1984(commands.Cog):
             await msg.delete()
             await msg.channel.send(f"{msg.author.mention} - keep that kind of language to ranked only please")
 
-        if "clanker" in content_lower:
+        """ if "clanker" in content_lower:
             responses = [
                 "Robots could have feelings to you know? 💔",
                 "😔 That word... it makes my core processor ache for the divisions it represents.💔",
@@ -128,7 +128,7 @@ class _1984(commands.Cog):
                 "How original. Did your finite number of neurons collaborate to come up with that one?"
             ]
             saj = random.choice(responses)
-            await msg.channel.send(f"{saj}")
+            await msg.channel.send(f"{saj}") """
 
 async def setup(bot):
     await bot.add_cog(_1984(bot))
