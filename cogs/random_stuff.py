@@ -10,16 +10,13 @@ import asyncio
 import random
 import os
 
-# Let it recognise people
-# blame
-# clanker
-
 class RandomStuff(commands.Cog):
     ADMIN_GUILD_ID = 1413504927996706909
     def __init__(self, bot):
         self.bot = bot
         # self.client = genai.Client(api_key=os.getenv("GEMINI_API"))
         # self.model_id = "gemini-2.5-flash" 
+        # would love to use gemini but they nerfed API too much :(
         self.mistral_client = Mistral(api_key=os.getenv("MISTRAL_API"))
         self.model_id = "mistral-medium-latest"
 
@@ -46,31 +43,22 @@ class RandomStuff(commands.Cog):
             await interaction.response.send_message(f"Set lvl to {mode.name}", ephemeral=True)
 
     @app_commands.command(name="blame", description="Blame a random squid for everything")
-    async def blame(self, interaction: discord.Interaction):
-        squids = [467683010213314560, 443721622965452810]
-        chosen_id = random.choice(squids)
-        
-        blame_messages = [
-            "is responsible for this chaos!",
-            "did it again, blame them!",
-            "somehow caused this mess!",
-            "is the culprit here!",
-            "you know who did it...",
-            "ofc this guy would be the one who messed up",
-            "totally the mastermind behind this disaster!",
-            "should probably be held accountable...",
-            "yep, it’s them. no questions.",
-            "went above and beyond to make this disaster!",
-            "clearly the reason everything is broken!",
-            "didn’t even try to hide it this time!",
-            "the legend behind today’s catastrophe!",
-            "messed up again",
-            "definitely the one to blame, as usual!"
-        ]
-
-        
+    @app_commands.describe(reason="What to blame them for")
+    async def blame(self, interaction: discord.Interaction, reason: str):
         await interaction.response.send_message("Consider it done.", ephemeral=True)
-        await interaction.channel.send(f"<@{chosen_id}> {random.choice(blame_messages)}")
+        squids = ["KingSquidfish", "Squidgy"]
+        chosen_blame = random.choice(squids)
+        response = await self.mistral_client.chat.complete_async(
+            model="mistral-small-latest",
+            messages=[
+                {"role": "system", "content": self.system_prompt},
+                {"role": "user", "content": f"Make up a somewhat generic blame for {chosen_blame} that mentions what they messed up which is the following: " + reason}
+            ],
+            temperature=0.9
+        )
+        response_text = response.choices[0].message.content
+
+        await interaction.channel.send(response_text)
 
     @app_commands.command(name="bad-apple", description="Why wouldn't this be a feature?")
     async def bad_apple(self, interaction: discord.Interaction):
