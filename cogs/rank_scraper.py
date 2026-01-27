@@ -2,6 +2,7 @@ import discord
 import os
 import requests
 import urllib.parse
+import random
 from discord.ext import commands, tasks
 from discord import app_commands
 
@@ -42,6 +43,18 @@ class RankScraper(commands.Cog):
 
     def __init__(self, bot):
         self.bot = bot
+
+    # Ik this is terrible and I should of made a service class but it'll get fixed at some point hopefully...
+    async def rate_rank(self, rank):
+        # Find the cog
+        random_stuff_cog = self.bot.get_cog("RandomStuff")
+        
+        response = await random_stuff_cog.mistral_client.chat.complete_async(
+            model="mistral-large-latest",
+            messages=[{"role": "user", "content": f"say something snarky while not using quotation marks and at max a sentence or two long about the rank of {rank} in Teamfight Tactics"}],
+            temperature=0.85
+        )
+        return response.choices[0].message.content
 
     # utilises riot api to pull tft rank
     @app_commands.command(name="tftrank", description="Get a Tacticians's rank and winrate")
@@ -92,6 +105,10 @@ class RankScraper(commands.Cog):
             embed.add_field(name="Top 4 rate", value=f"{wr}%")
 
             await interaction.followup.send(embed=embed)
+            #1/3 chance to trigger random ai rating
+            if random.randint(1, 3) == 1:
+                comment = await self.rate_rank(tier)
+                await interaction.channel.send(comment)
         except Exception as e:
             await interaction.followup.send(f"An error occurred: {str(e)}")
 
