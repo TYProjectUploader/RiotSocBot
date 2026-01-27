@@ -21,10 +21,25 @@ class PatchScraper(commands.Cog):
         self.RIOT_PATCH_DIVCLASS = "sc-4d29e6fd-0 hzTXxn"
         
         self.GAMES = {
-            "lol": PatchStrategy("League of Legends", "https://www.leagueoflegends.com/en-us/news/tags/patch-notes/", "https://www.leagueoflegends.com"),
-            "val": PatchStrategy("Valorant", "https://playvalorant.com/en-us/news/tags/patch-notes/", "https://playvalorant.com"),
-            "tft": PatchStrategy("TFT", "https://www.leagueoflegends.com/en-au/news/tags/teamfight-tactics-patch-notes/"),
-            "riftbd": PatchStrategy("Riftbound", "https://riftbound.leagueoflegends.com/en-us/news", "https://riftbound.leagueoflegends.com")
+            "lol": PatchStrategy(
+                "League of Legends",
+                "https://www.leagueoflegends.com/en-us/news/tags/patch-notes/",
+                "https://www.leagueoflegends.com"
+            ),
+            "val": PatchStrategy(
+                "Valorant",
+                "https://playvalorant.com/en-us/news/tags/patch-notes/",
+                "https://playvalorant.com"
+            ),
+            "tft": PatchStrategy(
+                "TFT",
+                "https://www.leagueoflegends.com/en-au/news/tags/teamfight-tactics-patch-notes/"
+            ),
+            "riftbd": PatchStrategy(
+                "Riftbound",
+                "https://riftbound.leagueoflegends.com/en-us/news",
+                "https://riftbound.leagueoflegends.com"
+            )
         }
         
         self.check_patch.start()
