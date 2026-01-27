@@ -1,11 +1,9 @@
 import discord
-import urllib3
 import os
 import requests
 import urllib.parse
 from discord.ext import commands, tasks
 from discord import app_commands
-from bs4 import BeautifulSoup
 
 class RankScraper(commands.Cog):
 
@@ -40,55 +38,10 @@ class RankScraper(commands.Cog):
         "vn":   {"platform": "vn2",  "region": "asia"},
     }
 
+    apex_ranks = ["Master", "Grandmaster", "Challenger"]
+
     def __init__(self, bot):
         self.bot = bot
-        self.HTMLPARSER = "html.parser"
-
-    def clean_lolrank(self, rank_str):
-        parts = rank_str.split()
-        match len(parts):
-            case 4: return f"{parts[0]} {parts[1]} {parts[3]}"
-            case 3: return f"{parts[0]} {parts[2]}"
-            case 2: return "Unranked"
-            case _: return None
-
-    # Rank scraper from opgg
-    def retrieve_lolrank(self, server, username):
-        url = f"https://www.op.gg/summoners/{server.lower()}/{username}"
-        http = urllib3.PoolManager()
-        response = http.request("GET", url, decode_content=True)
-        soup = BeautifulSoup(response.data, self.HTMLPARSER)
-        meta_tag = soup.find("meta", {"property": "og:description"})
-        
-        if not meta_tag: return None, None
-
-        parts = [p.strip() for p in meta_tag.get("content", "").split("/")]
-        # Example content:
-        # "DaHoodDuck#Quack / Platinum 4 0LP / 84Win 81Lose Win rate 51% / Brand ..."
-        rank_info = self.clean_lolrank(parts[1] if len(parts) > 1 else "Unknown")
-        overall_wr = parts[2] if len(parts) > 2 else "Unknown"
-        return rank_info, overall_wr
-
-    @app_commands.command(name="lolrank", description="Get a summoner's rank and winrate")
-    @app_commands.describe(server="The server region (oce, jp, na, etc)", username="Summoner Name#Tag")
-    async def lolrank(self, interaction: discord.Interaction, server: str, username: str):
-        await interaction.response.defer()
-        rankinfo, overall_wr = self.retrieve_lolrank(server, username.replace("#", "-"))
-
-        if rankinfo is None:
-            await interaction.followup.send(f"Could not find rank info for **{username}** on {server.upper()}.")
-        elif rankinfo == "Unranked":
-            await interaction.followup.send(f"**{username}** is Unranked.")
-        else:
-            parts = overall_wr.split("Win rate")
-            winrate_num = int(parts[1].strip().rstrip("%"))
-            emoji = "🥀" if winrate_num < 50 else "🎉"
-            embed = discord.Embed(
-                title=f"{username} ({server.upper()})",
-                description=f"{rankinfo} \n Win rate {parts[1].strip()} {emoji} \n {parts[0].strip()}",
-                color=discord.Color.dark_red()
-            )
-            await interaction.followup.send(embed=embed)
 
     # utilises riot api to pull tft rank
     @app_commands.command(name="tftrank", description="Get a Tacticians's rank and winrate")
@@ -125,18 +78,78 @@ class RankScraper(commands.Cog):
             ranked_tft = next((item for item in tactian_stats if item["queueType"] == "RANKED_TFT"), None)
 
             if not ranked_tft:
-                return await interaction.followup.send(f"**{username}** is Unranked in TFT.")
+                return await interaction.followup.send(f"**{username}** is currently unranked in TFT.")
 
             tier = ranked_tft['tier'].capitalize() #otherwise gives rank in all caps
-            rank = ranked_tft['rank']
+            rank = (" " + ranked_tft['rank']) if tier not in self.apex_ranks else ""
             lp = ranked_tft['leaguePoints']
             wins = ranked_tft['wins']
             losses = ranked_tft['losses']
             wr = round((wins / (wins + losses)) * 100, 1)
 
             embed = discord.Embed(title=f"{username}'s TFT rank", color=discord.Color.dark_red())
-            embed.add_field(name="Current Rank", value=f"{tier} {rank} ({lp} LP)")
-            embed.add_field(name="Top 4 rate", value=f"{wr}% ({wins}W / {losses}L)")
+            embed.add_field(name="Current Rank", value=f"{tier}{rank} ({lp} LP)", inline=False)
+            embed.add_field(name="Top 4 rate", value=f"{wr}%")
+
+            await interaction.followup.send(embed=embed)
+        except Exception as e:
+            await interaction.followup.send(f"An error occurred: {str(e)}")
+
+    # utilises seperate api key to pull lol rank since rito made it that way
+    @app_commands.command(name="lolrank", description="Get a Summoner's rank and winrate")
+    @app_commands.describe(server="The server region (oce, jp, na, etc)", username="Summoner Name#Tag")
+    async def lolrank(self, interaction: discord.Interaction, server: str, username: str):
+        await interaction.response.defer()
+
+        server_low = server.lower()
+        if server_low not in self.REGION_MAP:
+            await interaction.followup.send(f"Invalid region provided")
+            return
+
+        game_name, tag_line = username.split("#", 1)
+        platform = self.REGION_MAP[server_low]["platform"]
+        region = self.REGION_MAP[server_low]["region"]
+
+        headers = {"X-Riot-Token": os.getenv("RIOT_LOL_API")}
+
+        try:
+            # Get PUUID since rito only takes puuid
+            acc_url = f"https://{region}.api.riotgames.com/riot/account/v1/accounts/by-riot-id/{urllib.parse.quote(game_name)}/{tag_line}"
+            acc_res = requests.get(acc_url, headers=headers)
+            if acc_res.status_code != 200:
+                return await interaction.followup.send(f"Could not find: {username}")
+            
+            puuid = acc_res.json()['puuid']
+
+            lolacc_url = f"https://{platform}.api.riotgames.com/lol/league/v4/entries/by-puuid/{puuid}"
+            lolacc_res = requests.get(lolacc_url, headers=headers)
+            summoner_stats = lolacc_res.json()
+
+            ranked_stats = next((item for item in summoner_stats if item["queueType"] == "RANKED_SOLO_5x5"), None)
+
+            if not ranked_stats:
+                return await interaction.followup.send(f"**{username}** is currently unranked in solo/duo.")
+
+            
+            tier = ranked_stats['tier'].capitalize()
+            rank = (" " + ranked_stats['rank']) if tier not in self.apex_ranks else ""
+            lp = ranked_stats['leaguePoints']
+            wins = ranked_stats['wins']
+            losses = ranked_stats['losses']
+            wr = round((wins / (wins + losses)) * 100, 1)
+
+            embed = discord.Embed(title=f"{username}'s League rank", color=discord.Color.dark_red())
+            embed.add_field(name="Current Rank", value=f"{tier}{rank} ({lp} LP)", inline=False)
+
+            if wr < 45:
+                emoji = "💀"
+            elif wr < 50:
+                emoji = "🥀"
+            elif wr < 60:
+                emoji = "🎉"
+            else:
+                emoji = "🔥"
+            embed.add_field(name="Winrate", value=f"{wr}% {emoji} ({wins}W / {losses}L)")
 
             await interaction.followup.send(embed=embed)
         except Exception as e:

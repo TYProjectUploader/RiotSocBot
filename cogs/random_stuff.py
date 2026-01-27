@@ -38,7 +38,7 @@ class RandomStuff(commands.Cog):
         self.owolvl = mode.value 
         
         if mode.value == "none":
-            await interaction.response.send_message("Uwu filtering disabled.", ephemeral=True)
+            await interaction.response.send_message("uwu filtering disabled.", ephemeral=True)
         else:
             await interaction.response.send_message(f"Set lvl to {mode.name}", ephemeral=True)
 
