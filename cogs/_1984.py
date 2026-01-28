@@ -96,7 +96,8 @@ class _1984(commands.Cog):
             
         if self.censor_pattern.search(content_lower):
             censored_text = self.censor_message(msg.content)
-            await msg.channel.send(f"I've censored {msg.author.mention}'s text: {censored_text}")
+            files = [await attachment.to_file() for attachment in msg.attachments]
+            await msg.channel.send(content=f"I've censored {msg.author.mention}'s text: {censored_text}", files=files)
             await msg.channel.send("Please be mindful of sensitive language usage")
             await msg.delete()
 

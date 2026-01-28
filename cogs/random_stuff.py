@@ -18,7 +18,8 @@ class RandomStuff(commands.Cog):
         # self.model_id = "gemini-2.5-flash" 
         # would love to use gemini but they nerfed API too much :(
         self.mistral_client = Mistral(api_key=os.getenv("MISTRAL_API"))
-        self.model_id = "mistral-medium-latest"
+        self.model_id = "mistral-medium-2505"
+        #mistral-medium-latest is normal
 
         self.owolvl="none"
 
@@ -117,7 +118,7 @@ class RandomStuff(commands.Cog):
         if msg.author == self.bot.user:
             return
 
-        if "clanker" in msg.content.lower():
+        if "clanker" in msg.content.lower() and not (msg.reference and self.bot.user.mentioned_in(msg)):
             violator = msg.author.display_name
             async with msg.channel.typing():
                 try:

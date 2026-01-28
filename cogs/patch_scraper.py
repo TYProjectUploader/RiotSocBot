@@ -82,7 +82,8 @@ class PatchScraper(commands.Cog):
     # Patch auto checker
     @tasks.loop(hours=6)
     async def check_patch(self):
-        channel = self.bot.get_channel(1461268298665693247)
+        #test server channel 1461268298665693247
+        channel = self.bot.get_channel(1050307222573428756)
         if not channel: return
         
         persisted_data = get_persist()

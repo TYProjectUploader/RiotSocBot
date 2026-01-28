@@ -26,7 +26,8 @@ class MemeScraper(commands.Cog):
 
     @tasks.loop(time=time(hour=9, minute=0, tzinfo=ZoneInfo("Australia/Sydney")))
     async def daily_meme(self):
-        meme_channel = self.bot.get_channel(1461252975375810653)
+        # test chanenl 1461252975375810653
+        meme_channel = self.bot.get_channel(1050306304083775558)
         if not meme_channel: return
 
         submission = next((s for s in self.reddit.subreddit('leagueofmemes').top(time_filter='day', limit=10)
