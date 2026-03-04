@@ -38,6 +38,8 @@ class _1984(commands.Cog):
                 os.getenv("DIRECTOR_ROLE_ID")
             )
         ]
+        self.WHITELIST_CHANNELS = {123456789012345678}
+        self.WHITELIST_GUILDS = {1464920295881314304}
 
         self.WHITE_LIST_CHANNELS = [
             312748799799984130,
@@ -55,6 +57,15 @@ class _1984(commands.Cog):
     async def on_raw_message_edit(self, payload):
         if payload.channel_id in self.WHITE_LIST_CHANNELS:
             return
+        if any(role.id in self.WHITELIST_ROLES for role in msg.author.roles):
+            return
+
+        if payload.channel_id in self.WHITELIST_CHANNELS:
+            return
+        
+        if payload.guild_id in self.WHITELIST_GUILDS:
+            return
+
         # 'data' contains raw dictionary of the edited message
         data = payload.data
         content = data.get('content', '').lower()
@@ -71,8 +82,9 @@ class _1984(commands.Cog):
             if message.author.bot: return
 
             censored_text = self.censor_message(message.content)
-            await channel.send(f"I've censored {message.author.mention}'s text: {censored_text}")
-            await channel.send("Really? You thought that'd work?")
+            files = [await attachment.to_file() for attachment in msg.attachments]
+            await channel.send(content=f"I've censored {message.author.mention}'s text: {censored_text}", files=files)
+            await channel.send("Really? You thought editing your message would let you bypass me?")
             await channel.send(file=discord.File('neurosig.jpg'), delete_after=5)
             await message.delete()
 
@@ -83,6 +95,12 @@ class _1984(commands.Cog):
         if msg.author.bot: return
         
         if any(role.id in self.WHITELIST_ROLES for role in msg.author.roles):
+            return
+        
+        if msg.guild.id in self.WHITELIST_GUILDS:
+            return
+
+        if msg.channel.id in self.WHITELIST_CHANNELS:
             return
 
         content_lower = msg.content.lower()

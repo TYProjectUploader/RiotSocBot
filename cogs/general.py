@@ -1,6 +1,7 @@
 import discord
 from discord.ext import commands
 from discord import app_commands
+import os
 
 class General(commands.Cog):
     def __init__(self, bot):
@@ -8,8 +9,18 @@ class General(commands.Cog):
 
     @commands.Cog.listener()
     async def on_member_join(self, member):
-        rules_channel = "https://discord.com/channels/312743332579377152/1050317772703416381"
-        await member.send(f"Welcome {member.name} to RiotSoc!\nPlease read our rules at {rules_channel}")
+        if member.guild.id == os.getenv("RIOTSOC_GUILD_ID"):
+            rules_channel = "https://discord.com/channels/312743332579377152/1050317772703416381"
+            message = (
+                f"Welcome {member.name} to RiotSoc!\n"
+                f"Please read our rules at {rules_channel} to get started. "
+                "If you need help for anything at all, feel free to message an exec or ping a subcomm!"
+            )
+
+        try:
+            await member.send(message)
+        except discord.Forbidden:
+            pass #incase dms close
 
     @app_commands.command(name="help", description="Displays all available bot commands")
     async def help_command(self, interaction: discord.Interaction):
