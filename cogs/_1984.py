@@ -57,8 +57,6 @@ class _1984(commands.Cog):
     async def on_raw_message_edit(self, payload):
         if payload.channel_id in self.WHITE_LIST_CHANNELS:
             return
-        if any(role.id in self.WHITELIST_ROLES for role in msg.author.roles):
-            return
 
         if payload.channel_id in self.WHITELIST_CHANNELS:
             return
