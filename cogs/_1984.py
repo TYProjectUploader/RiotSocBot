@@ -35,7 +35,8 @@ class _1984(commands.Cog):
         self.WHITELIST_ROLES = [
             int(v) for v in (
                 os.getenv("EXEC_ROLE_ID"),
-                os.getenv("DIRECTOR_ROLE_ID")
+                os.getenv("DIRECTOR_ROLE_ID"),
+		os.getenv("RIOT_ROLE_ID")
             )
         ]
         self.WHITELIST_CHANNELS = {123456789012345678}
