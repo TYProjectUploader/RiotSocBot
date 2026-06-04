@@ -75,6 +75,26 @@ class _1984(commands.Cog):
             return False
         return any(role.id in self.WHITELIST_ROLES for role in member.roles)
 
+    def _neutralise_mass_pings(self, text: str) -> str:
+        """Break @everyone/@here so Discord cannot mass-ping from bot messages."""
+        def break_ping(match: re.Match[str]) -> str:
+            return "@" + "\u200b" + match.group()[1:]
+
+        text = re.sub(r"@everyone", break_ping, text, flags=re.IGNORECASE)
+        return re.sub(r"@here", break_ping, text, flags=re.IGNORECASE)
+
+    def _mass_ping_allowed_mentions(self, author: discord.abc.User) -> discord.AllowedMentions:
+        return discord.AllowedMentions(everyone=False, roles=False, users=[author])
+
+    async def _send_mass_ping_reply(self, channel: discord.abc.Messageable, author: discord.abc.User, body: str):
+        mention = author.mention
+        safe_body = self._neutralise_mass_pings(body)
+        max_body = max(0, 2000 - len(mention) - 2)
+        await channel.send(
+            f"{mention}\n\n{safe_body[:max_body]}",
+            allowed_mentions=self._mass_ping_allowed_mentions(author),
+        )
+
     async def _owoify_edit_prank(self, channel: discord.TextChannel, message: discord.Message, content: str):
         if message.author.bot or random.randint(1, 3) != 1:
             return
@@ -104,7 +124,6 @@ class _1984(commands.Cog):
 
     # responsds to a mass ping
     async def _respond_to_mass_ping(self, channel: discord.abc.Messageable, author: discord.abc.User, content: str):
-        mention = author.mention
         ping_type = "@everyone" if "@everyone" in content.lower() else "@here"
         fallback_body = (
             f"Blocked a {ping_type} ping. "
@@ -113,15 +132,16 @@ class _1984(commands.Cog):
 
         random_stuff = self.bot.get_cog("RandomStuff")
         if not random_stuff:
-            await channel.send(f"{mention}\n\n{fallback_body}")
+            await self._send_mass_ping_reply(channel, author, fallback_body)
             return
 
         prompt = (
             f"{author.display_name} tried to mass-ping a discord server ({ping_type}) with this message:\n"
             f"---\n{content}\n---\n"
-            "Give a funny response explaining that their message was blocked because it was a mass ping."
+            "Give a funny response explaining that their message was blocked because it was a mass ping. "
             "Note if it resembles a scam (phishing, fake Nitro, crypto/airdrop, free macbook/camera/ps5/etc, impersonation, urgency + suspicious links), "
             "clearly warn the server not to click links or trust it. "
+            "Never write @everyone or @here in your reply. "
             "Stay concise (under 500 characters), direct, and suitable for a public Discord channel."
         )
 
@@ -136,13 +156,10 @@ class _1984(commands.Cog):
                     temperature=0.7,
                 )
             text = (response.choices[0].message.content or "").strip()
-            body = text or fallback_body
-            # Keep mention + body within Discord's 2000 char limit
-            max_body = max(0, 2000 - len(mention) - 2)
-            await channel.send(f"{mention}\n\n{body[:max_body]}")
+            await self._send_mass_ping_reply(channel, author, text or fallback_body)
         except Exception:
             logger.exception("mass ping Mistral response failed")
-            await channel.send(f"{mention}\n\n{fallback_body}")
+            await self._send_mass_ping_reply(channel, author, fallback_body)
 
     async def _censor_violation(self, channel, message: discord.Message, followup: str):
         censored_text = self.censor_message(message.content)
