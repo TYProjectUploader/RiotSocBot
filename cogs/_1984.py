@@ -76,7 +76,7 @@ class _1984(commands.Cog):
         return any(role.id in self.WHITELIST_ROLES for role in member.roles)
 
     async def _owoify_edit_prank(self, channel: discord.TextChannel, message: discord.Message, content: str):
-        if message.author.bot or random.randint(1, 10) != 1:
+        if message.author.bot or random.randint(1, 3) != 1:
             return
 
         owoified = owoify(content, Owoness.Uwu)[:2000]
@@ -186,6 +186,9 @@ class _1984(commands.Cog):
             await msg.channel.send(
                 f"{msg.author.mention} do not attempt to use @ everyone or @ here.",
                 delete_after=5
+            )
+            await msg.channel.send(
+                f"{msg.author.mention} was smited for attempting to use @ everyone or @ here.",
             )
             
         if self.censor_pattern.search(content_lower):
