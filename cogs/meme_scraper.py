@@ -1,10 +1,17 @@
+import asyncio
+import logging
 import discord
 import os
 import praw
 from discord.ext import commands, tasks
-from discord import app_commands
 from zoneinfo import ZoneInfo
 from datetime import time
+
+from utils import get_text_channel
+
+logger = logging.getLogger(__name__)
+
+MEME_CHANNEL_ID = 1050306304083775558
 
 class MemeScraper(commands.Cog):
     def __init__(self, bot):
@@ -17,27 +24,46 @@ class MemeScraper(commands.Cog):
             check_for_async=False
         )
         
-        aedt = ZoneInfo("Australia/Sydney")
-        self.meme_time = time(hour=9, minute=0, tzinfo=aedt)
         self.daily_meme.start()
 
     def cog_unload(self):
         self.daily_meme.cancel()
 
+    def _pick_submission(self):
+        return next(
+            (
+                s for s in self.reddit.subreddit('leagueofmemes').top(time_filter='day', limit=10)
+                if not s.is_video and not s.is_self and not getattr(s, 'is_gallery', False)
+            ),
+            None,
+        )
+
     @tasks.loop(time=time(hour=9, minute=0, tzinfo=ZoneInfo("Australia/Sydney")))
     async def daily_meme(self):
-        # test chanenl 1461252975375810653
-        meme_channel = self.bot.get_channel(1050306304083775558)
-        if not meme_channel: return
+        meme_channel = await get_text_channel(self.bot, MEME_CHANNEL_ID)
+        if not meme_channel:
+            logger.warning("daily_meme: channel %s not found", MEME_CHANNEL_ID)
+            return
 
-        submission = next((s for s in self.reddit.subreddit('leagueofmemes').top(time_filter='day', limit=10)
-                           if not s.is_video and not s.is_self and not hasattr(s, 'is_gallery')), None)
+        try:
+            submission = await asyncio.to_thread(self._pick_submission)
+        except Exception:
+            logger.exception("daily_meme: failed to fetch from Reddit")
+            await meme_channel.send("No meme today :P (Reddit fetch failed)")
+            return
 
         if submission and submission.url:
-            embed = discord.Embed(title="Meme of the day", description=submission.title, 
-                                  url=f"https://reddit.com{submission.permalink}", color=0xFF5700)
+            embed = discord.Embed(
+                title="Meme of the day",
+                description=submission.title,
+                url=f"https://reddit.com{submission.permalink}",
+                color=0xFF5700,
+            )
             embed.set_image(url=submission.url)
-            embed.set_author(name="r/leagueofmemes", icon_url="https://www.redditstatic.com/desktop2x/img/favicon/apple-icon-57x57.png")
+            embed.set_author(
+                name="r/leagueofmemes",
+                icon_url="https://www.redditstatic.com/desktop2x/img/favicon/apple-icon-57x57.png",
+            )
             author = submission.author.name if submission.author else "[deleted]"
             embed.set_footer(text=f"👤 u/{author}")
             await meme_channel.send(embed=embed)
@@ -47,6 +73,10 @@ class MemeScraper(commands.Cog):
     @daily_meme.before_loop
     async def before_daily_meme(self):
         await self.bot.wait_until_ready()
+
+    @daily_meme.error
+    async def daily_meme_error(self, error: BaseException):
+        logger.exception("daily_meme task error", exc_info=error)
 
 async def setup(bot):
     await bot.add_cog(MemeScraper(bot))

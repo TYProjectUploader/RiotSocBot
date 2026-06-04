@@ -5,7 +5,8 @@ from pathlib import Path
 from google import genai
 from google.genai import types
 from mistralai import Mistral
-from owoify.owoify import owoify, Owoness
+from owoify import owoify
+from owoify.owoify import Owoness
 import asyncio
 import random
 import os
