@@ -82,6 +82,8 @@ class _1984(commands.Cog):
         owoified = owoify(content, Owoness.Uwu)[:2000]
         files = [await attachment.to_file() for attachment in message.attachments]
 
+        file_kwargs = {"files": files} if files else {}
+
         try:
             webhook = await channel.create_webhook(name="RiotSocBot")
             try:
@@ -89,13 +91,13 @@ class _1984(commands.Cog):
                     owoified,
                     username=message.author.display_name,
                     avatar_url=message.author.display_avatar.url,
-                    files=files or None,
+                    **file_kwargs,
                 )
             finally:
                 await webhook.delete()
             await message.delete()
         except discord.Forbidden:
-            await channel.send(f"{message.author.mention} {owoified}", files=files or None)
+            await channel.send(f"{message.author.mention} {owoified}", **file_kwargs)
             await message.delete()
         except discord.HTTPException:
             logger.exception("owoify edit prank failed for message %s", message.id)
@@ -105,7 +107,7 @@ class _1984(commands.Cog):
         files = [await attachment.to_file() for attachment in message.attachments]
         await channel.send(
             content=f"I've censored {message.author.mention}'s text: {censored_text}",
-            files=files or None,
+            **({"files": files} if files else {}),
         )
         await channel.send(followup)
         await channel.send(files=[discord.File('neurosig.jpg')], delete_after=5)
@@ -196,7 +198,7 @@ class _1984(commands.Cog):
             files = [await attachment.to_file() for attachment in msg.attachments]
             await msg.channel.send(
                 content=f"I've censored {msg.author.mention}'s text: {censored_text}",
-                files=files or None,
+                **({"files": files} if files else {}),
             )
             await msg.channel.send("Please be mindful of sensitive language usage")
             await msg.delete()
