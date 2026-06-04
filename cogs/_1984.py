@@ -39,16 +39,16 @@ class _1984(commands.Cog):
 
         self.WHITELIST_ROLES = [
             int(v) for v in (
-                os.getenv("EXEC_ROLE_ID"),
-                os.getenv("DIRECTOR_ROLE_ID"),
+                ## os.getenv("EXEC_ROLE_ID"),
+                ## os.getenv("DIRECTOR_ROLE_ID"),
                 os.getenv("RIOT_ROLE_ID"),
             ) if v
         ]
-        self.WHITELIST_CHANNELS = {123456789012345678}
         self.WHITELIST_GUILDS = {1464920295881314304}
 
         self.WHITE_LIST_CHANNELS = [
             312748799799984130,
+            123456789012345678,
             1343524032158367744,
             1050317772703416381
         ]
@@ -102,6 +102,48 @@ class _1984(commands.Cog):
         except discord.HTTPException:
             logger.exception("owoify edit prank failed for message %s", message.id)
 
+    # responsds to a mass ping
+    async def _respond_to_mass_ping(self, channel: discord.abc.Messageable, author: discord.abc.User, content: str):
+        mention = author.mention
+        ping_type = "@everyone" if "@everyone" in content.lower() else "@here"
+        fallback_body = (
+            f"Blocked a {ping_type} ping. "
+            "Treat unexpected mass pings as suspicious—do not click links or share credentials."
+        )
+
+        random_stuff = self.bot.get_cog("RandomStuff")
+        if not random_stuff:
+            await channel.send(f"{mention}\n\n{fallback_body}")
+            return
+
+        prompt = (
+            f"{author.display_name} tried to mass-ping a discord server ({ping_type}) with this message:\n"
+            f"---\n{content}\n---\n"
+            "Give a funny response explaining that their message was blocked because it was a mass ping."
+            "Note if it resembles a scam (phishing, fake Nitro, crypto/airdrop, free macbook/camera/ps5/etc, impersonation, urgency + suspicious links), "
+            "clearly warn the server not to click links or trust it. "
+            "Stay concise (under 500 characters), direct, and suitable for a public Discord channel."
+        )
+
+        try:
+            async with channel.typing():
+                response = await random_stuff.mistral_client.chat.complete_async(
+                    model=random_stuff.model_id,
+                    messages=[
+                        {"role": "system", "content": random_stuff.system_prompt},
+                        {"role": "user", "content": prompt},
+                    ],
+                    temperature=0.7,
+                )
+            text = (response.choices[0].message.content or "").strip()
+            body = text or fallback_body
+            # Keep mention + body within Discord's 2000 char limit
+            max_body = max(0, 2000 - len(mention) - 2)
+            await channel.send(f"{mention}\n\n{body[:max_body]}")
+        except Exception:
+            logger.exception("mass ping Mistral response failed")
+            await channel.send(f"{mention}\n\n{fallback_body}")
+
     async def _censor_violation(self, channel, message: discord.Message, followup: str):
         censored_text = self.censor_message(message.content)
         files = [await attachment.to_file() for attachment in message.attachments]
@@ -116,8 +158,6 @@ class _1984(commands.Cog):
     @commands.Cog.listener()
     async def on_raw_message_edit(self, payload: discord.RawMessageUpdateEvent):
         if payload.channel_id in self.WHITE_LIST_CHANNELS:
-            return
-        if payload.channel_id in self.WHITELIST_CHANNELS:
             return
         if payload.guild_id in self.WHITELIST_GUILDS:
             return
@@ -178,21 +218,17 @@ class _1984(commands.Cog):
         if msg.guild.id in self.WHITELIST_GUILDS:
             return
 
-        if msg.channel.id in self.WHITELIST_CHANNELS:
+        if msg.channel.id in self.WHITE_LIST_CHANNELS:
             return
 
         content_lower = msg.content.lower()
 
         if "@everyone" in content_lower or "@here" in content_lower:
+            original_content = msg.content
             await msg.delete()
-            await msg.channel.send(
-                f"{msg.author.mention} do not attempt to use @ everyone or @ here.",
-                delete_after=5
-            )
-            await msg.channel.send(
-                f"{msg.author.mention} was smited for attempting to use @ everyone or @ here.",
-            )
-            
+            await self._respond_to_mass_ping(msg.channel, msg.author, original_content)
+            return
+
         if self.censor_pattern.search(content_lower):
             censored_text = self.censor_message(msg.content)
             files = [await attachment.to_file() for attachment in msg.attachments]
