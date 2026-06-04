@@ -91,36 +91,55 @@ class _1984(commands.Cog):
         safe_body = self._neutralise_mass_pings(body)
         max_body = max(0, 2000 - len(mention) - 2)
         await channel.send(
-            f"{mention}\n\n{safe_body[:max_body]}",
+            f"{mention} Don't even try to use @everyone or @here in your message, it's not allowed.\n{safe_body[:max_body]}",
             allowed_mentions=self._mass_ping_allowed_mentions(author),
         )
 
-    async def _owoify_edit_prank(self, channel: discord.TextChannel, message: discord.Message, content: str):
-        if message.author.bot or random.randint(1, 3) != 1:
-            return
-
-        owoified = owoify(content, Owoness.Uwu)[:2000]
-        files = [await attachment.to_file() for attachment in message.attachments]
-
+    async def _send_as_author(
+        self,
+        channel: discord.TextChannel,
+        author: discord.abc.User,
+        content: str,
+        message: discord.Message | None = None,
+    ) -> bool:
+        files = []
+        if message:
+            files = [await attachment.to_file() for attachment in message.attachments]
         file_kwargs = {"files": files} if files else {}
 
         try:
             webhook = await channel.create_webhook(name="RiotSocBot")
             try:
                 await webhook.send(
-                    owoified,
-                    username=message.author.display_name,
-                    avatar_url=message.author.display_avatar.url,
+                    content[:2000],
+                    username=author.display_name,
+                    avatar_url=author.display_avatar.url,
                     **file_kwargs,
                 )
             finally:
                 await webhook.delete()
-            await message.delete()
+            return True
         except discord.Forbidden:
-            await channel.send(f"{message.author.mention} {owoified}", **file_kwargs)
-            await message.delete()
+            await channel.send(f"{author.mention} {content[:2000]}", **file_kwargs)
+            return True
         except discord.HTTPException:
-            logger.exception("owoify edit prank failed for message %s", message.id)
+            logger.exception("webhook send as author failed for user %s", author.id)
+            return False
+
+    async def _replace_with_censored(self, channel: discord.TextChannel, message: discord.Message) -> bool:
+        censored_text = self.censor_message(message.content)
+        if not await self._send_as_author(channel, message.author, censored_text, message):
+            return False
+        await message.delete()
+        return True
+
+    async def _owoify_edit_prank(self, channel: discord.TextChannel, message: discord.Message, content: str):
+        if message.author.bot or random.randint(1, 3) != 1:
+            return
+
+        owoified = owoify(content, Owoness.Uwu)
+        if await self._send_as_author(channel, message.author, owoified, message):
+            await message.delete()
 
     # responsds to a mass ping
     async def _respond_to_mass_ping(self, channel: discord.abc.Messageable, author: discord.abc.User, content: str):
@@ -161,16 +180,11 @@ class _1984(commands.Cog):
             logger.exception("mass ping Mistral response failed")
             await self._send_mass_ping_reply(channel, author, fallback_body)
 
-    async def _censor_violation(self, channel, message: discord.Message, followup: str):
-        censored_text = self.censor_message(message.content)
-        files = [await attachment.to_file() for attachment in message.attachments]
-        await channel.send(
-            content=f"I've censored {message.author.mention}'s text: {censored_text}",
-            **({"files": files} if files else {}),
-        )
+    async def _censor_violation(self, channel: discord.TextChannel, message: discord.Message, followup: str):
+        if not await self._replace_with_censored(channel, message):
+            return
         await channel.send(followup)
         await channel.send(files=[discord.File('neurosig.jpg')], delete_after=5)
-        await message.delete()
 
     @commands.Cog.listener()
     async def on_raw_message_edit(self, payload: discord.RawMessageUpdateEvent):
@@ -247,14 +261,9 @@ class _1984(commands.Cog):
             return
 
         if self.censor_pattern.search(content_lower):
-            censored_text = self.censor_message(msg.content)
-            files = [await attachment.to_file() for attachment in msg.attachments]
-            await msg.channel.send(
-                content=f"I've censored {msg.author.mention}'s text: {censored_text}",
-                **({"files": files} if files else {}),
-            )
+            if isinstance(msg.channel, discord.TextChannel):
+                await self._replace_with_censored(msg.channel, msg)
             await msg.channel.send("Please be mindful of sensitive language usage")
-            await msg.delete()
 
             user_id = msg.author.id
             today = datetime.now(timezone.utc).date()
@@ -265,7 +274,7 @@ class _1984(commands.Cog):
             self.uncensored_offenses[user_id]["count"] += 1
             if self.uncensored_offenses[user_id]["count"] >= 3:
                 until = datetime.now(timezone.utc) + timedelta(minutes=1)
-                await msg.channel.send(f"{msg.author.mention}, you have used insensitive words 3+ times today.")
+                await msg.channel.send(f"{msg.author.mention}, you have used insensitive words 3+ times today. Reflect on your actions.")
                 if member:
                     try:
                         await member.timeout(until, reason="Repeated not censoring of words")
