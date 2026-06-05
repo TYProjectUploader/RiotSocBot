@@ -10,6 +10,8 @@ from owoify.owoify import Owoness
 
 logger = logging.getLogger(__name__)
 
+_URL_PATTERN = re.compile(r'https?://\S+')
+
 class _1984(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
@@ -133,11 +135,48 @@ class _1984(commands.Cog):
         await message.delete()
         return True
 
+    def _owoify_segment(self, text: str) -> str:
+        if not text:
+            return text
+        leading_match = re.match(r'^\s+', text)
+        leading = leading_match.group(0) if leading_match else ''
+        trailing_match = re.search(r'\s+$', text)
+        trailing = trailing_match.group(0) if trailing_match else ''
+        middle = text[len(leading):len(text) - len(trailing) if trailing else len(text)]
+        return leading + (owoify(middle, Owoness.Uwu) if middle else '') + trailing
+
+    def _is_user_content_edit(self, payload: discord.RawMessageUpdateEvent, content: str) -> bool:
+        data = payload.data or {}
+        # Discord sends MESSAGE_UPDATE when embeds/previews attach, without edited_timestamp.
+        if 'edited_timestamp' not in data:
+            return False
+        cached = payload.cached_message
+        if cached is not None and cached.content == content:
+            return False
+        return True
+
+    def _owoify_preserving_urls(self, content: str) -> str:
+        parts: list[str] = []
+        urls: list[str] = []
+        last_end = 0
+        for match in _URL_PATTERN.finditer(content):
+            parts.append(content[last_end:match.start()])
+            urls.append(match.group(0))
+            last_end = match.end()
+        parts.append(content[last_end:])
+
+        result: list[str] = []
+        for i, part in enumerate(parts):
+            result.append(self._owoify_segment(part))
+            if i < len(urls):
+                result.append(urls[i])
+        return ''.join(result)
+
     async def _owoify_edit_prank(self, channel: discord.TextChannel, message: discord.Message, content: str):
-        if message.author.bot or random.randint(1, 3) != 1:
+        if message.author.bot or random.randint(1, 4) != 1:
             return
 
-        owoified = owoify(content, Owoness.Uwu)
+        owoified = self._owoify_preserving_urls(content)
         if await self._send_as_author(channel, message.author, owoified, message):
             await message.delete()
 
@@ -200,6 +239,8 @@ class _1984(commands.Cog):
             return
         content = data.get('content', '')
         if not content:
+            return
+        if not self._is_user_content_edit(payload, content):
             return
 
         try:
