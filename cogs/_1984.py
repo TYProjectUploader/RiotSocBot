@@ -143,7 +143,7 @@ class _1984(commands.Cog):
         trailing_match = re.search(r'\s+$', text)
         trailing = trailing_match.group(0) if trailing_match else ''
         middle = text[len(leading):len(text) - len(trailing) if trailing else len(text)]
-        return leading + (owoify(middle, Owoness.Uwu) if middle else '') + trailing
+        return leading + (owoify(middle, Owoness.Owo) if middle else '') + trailing
 
     def _is_user_content_edit(self, payload: discord.RawMessageUpdateEvent, content: str) -> bool:
         data = payload.data or {}
@@ -173,7 +173,7 @@ class _1984(commands.Cog):
         return ''.join(result)
 
     async def _owoify_edit_prank(self, channel: discord.TextChannel, message: discord.Message, content: str):
-        if message.author.bot or random.randint(1, 4) != 1:
+        if message.author.bot or random.randint(1, 7) != 1:
             return
 
         owoified = self._owoify_preserving_urls(content)
