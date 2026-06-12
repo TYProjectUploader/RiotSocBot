@@ -46,7 +46,7 @@ class RandomStuff(commands.Cog):
             await interaction.response.send_message(f"Set lvl to {mode.name}", ephemeral=True)
 
     @app_commands.guilds(discord.Object(id=ADMIN_GUILD_ID))
-    @app_commands.command(name="toggle_mentions", description="Enable or disable the bot responding to mentions")
+    @app_commands.command(name="toggle_ai_responses", description="Enable or disable the bot responding to mentions")
     async def toggle_mentions(self, interaction: discord.Interaction, enabled: bool):
         self.respond_to_mentions = enabled 
         
