@@ -137,19 +137,19 @@ class RandomStuff(commands.Cog):
                     await msg.reply(f"Error: {str(e)}")
 
 
-        """ if self.bot.user.mentioned_in(msg):
+        if self.bot.user.mentioned_in(msg):
             async with msg.channel.typing():
                 try:
                     user_input = msg.content.replace(f'<@{self.bot.user.id}>', 'RiotSocBot').strip()
                     
-                    # GEMINI vers
+                    """ # GEMINI vers
                     response = self.client.models.generate_content(
                         model=self.model_id,
                         config=types.GenerateContentConfig(
                             system_instruction=self.system_prompt
                         ),
                         contents=user_input
-                    )
+                    ) """
 
                     messages = [
                         {"role": "system", "content": self.system_prompt}
@@ -183,7 +183,7 @@ class RandomStuff(commands.Cog):
                     except:
                         await msg.channel.send("Message being responded to has been deleted")
                 except Exception as e:
-                    await msg.reply(f"Error: {str(e)}") """
+                    await msg.reply(f"Error: {str(e)}")
 
 async def setup(bot):
     await bot.add_cog(RandomStuff(bot))
