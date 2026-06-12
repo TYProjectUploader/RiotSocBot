@@ -12,7 +12,7 @@ import random
 import os
 
 class RandomStuff(commands.Cog):
-    ADMIN_GUILD_ID = 1413504927996706909
+    ADMIN_GUILD_ID = int(os.getenv("ADMIN_GUILD_ID"))
     def __init__(self, bot):
         self.bot = bot
         # self.client = genai.Client(api_key=os.getenv("GEMINI_API"))

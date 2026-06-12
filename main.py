@@ -5,6 +5,7 @@ from dotenv import load_dotenv
 
 load_dotenv()
 TOKEN = os.getenv("DISCORD_TOKEN")
+ADMIN_GUILD_ID = int(os.getenv("ADMIN_GUILD_ID"))
 
 intents = discord.Intents.default()
 intents.message_content = True
@@ -26,7 +27,9 @@ class RiotSocBot(commands.Bot):
                 await self.load_extension(f'cogs.{filename[:-3]}')
         
         await self.tree.sync()
-        print(f"Synced slash commands for {self.user}")
+        await self.tree.sync(guild=discord.Object(id=ADMIN_GUILD_ID))
+
+        print(f"Synced slash commands for {self.user} globally and for admin server")
 
 bot = RiotSocBot()
 
