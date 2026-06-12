@@ -23,6 +23,7 @@ class RandomStuff(commands.Cog):
         #mistral-medium-latest is normal
 
         self.owolvl="none"
+        self.respond_to_mentions = False
 
         prompt_file = Path.cwd() / "data" / "system_prompt.txt"
         with open(prompt_file, "r", encoding="utf-8") as file:
@@ -43,6 +44,14 @@ class RandomStuff(commands.Cog):
             await interaction.response.send_message("uwu filtering disabled.", ephemeral=True)
         else:
             await interaction.response.send_message(f"Set lvl to {mode.name}", ephemeral=True)
+
+    @app_commands.guilds(discord.Object(id=ADMIN_GUILD_ID))
+    @app_commands.command(name="toggle_mentions", description="Enable or disable the bot responding to mentions")
+    async def toggle_mentions(self, interaction: discord.Interaction, enabled: bool):
+        self.respond_to_mentions = enabled 
+        
+        state_str = "enabled" if enabled else "disabled"
+        await interaction.response.send_message(f"Mention responses are now {state_str}.", ephemeral=True)
 
     @app_commands.command(name="blame", description="Blame a random squid for everything")
     @app_commands.describe(reason="What to blame them for")
@@ -137,7 +146,7 @@ class RandomStuff(commands.Cog):
                     await msg.reply(f"Error: {str(e)}")
 
 
-        if self.bot.user.mentioned_in(msg):
+        if self.bot.user.mentioned_in(msg) and self.respond_to_mentions:
             async with msg.channel.typing():
                 try:
                     user_input = msg.content.replace(f'<@{self.bot.user.id}>', 'RiotSocBot').strip()
