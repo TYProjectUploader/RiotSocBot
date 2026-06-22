@@ -85,6 +85,7 @@ class _1984(commands.Cog):
         text = re.sub(r"@everyone", break_ping, text, flags=re.IGNORECASE)
         return re.sub(r"@here", break_ping, text, flags=re.IGNORECASE)
 
+    ## make sure even if it slips through it can't metnion
     def _mass_ping_allowed_mentions(self, author: discord.abc.User) -> discord.AllowedMentions:
         return discord.AllowedMentions(everyone=False, roles=False, users=[author])
 
@@ -94,6 +95,7 @@ class _1984(commands.Cog):
         max_body = max(0, 2000 - len(mention) - 2)
         await channel.send(
             f"{mention} Don't even try to use @ everyone or @ here in your message, it's not allowed.\n{safe_body[:max_body]}",
+            files=[discord.File('lulu_squash.jpg')],
             allowed_mentions=self._mass_ping_allowed_mentions(author),
         )
 
@@ -196,11 +198,10 @@ class _1984(commands.Cog):
         prompt = (
             f"{author.display_name} tried to mass-ping a discord server ({ping_type}) with this message:\n"
             f"---\n{content}\n---\n"
-            "Give a funny response explaining that their message was blocked because it was a mass ping. "
-            "Note if it resembles a scam (phishing, fake Nitro, crypto/airdrop, free macbook/camera/ps5/etc, impersonation, urgency + suspicious links), "
-            "clearly warn the server not to click links or trust it. "
-            "Never write @everyone or @here in your reply. "
-            "Stay concise (under 500 characters), direct, and suitable for a public Discord channel."
+            "Say that their message was blocked because it was a mass ping."
+            "If it resembles a scam (phishing, fake Nitro, crypto/airdrop, free macbook/camera/ps5/etc, impersonation, urgency + suspicious links), "
+            "warn the server not to click links or trust the user who posted it"
+            "Never write @everyone or @here in your reply."
         )
 
         try:
