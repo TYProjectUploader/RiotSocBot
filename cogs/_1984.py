@@ -95,7 +95,7 @@ class _1984(commands.Cog):
         max_body = max(0, 2000 - len(mention) - 2)
         await channel.send(
             f"{mention} Don't even try to use @ everyone or @ here in your message, it's not allowed.\n{safe_body[:max_body]}",
-            files=[discord.File('lulu_squash.jpg')],
+            files=[discord.File('lulu_squash.png')],
             allowed_mentions=self._mass_ping_allowed_mentions(author),
         )
 
