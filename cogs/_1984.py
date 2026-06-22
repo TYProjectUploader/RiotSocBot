@@ -198,9 +198,9 @@ class _1984(commands.Cog):
         prompt = (
             f"{author.display_name} tried to mass-ping a discord server ({ping_type}) with this message:\n"
             f"---\n{content}\n---\n"
-            "Say that their message was blocked because it was a mass ping."
             "ONLY if the message resembles a scam (phishing, fake Nitro, crypto/airdrop, free macbook/camera/ps5/etc, impersonation, urgency + suspicious links), "
-            "warn the server not to click links or trust the user who posted it"
+            "warn the server not to click links or trust the user who posted it."
+            "Otherwise just respond to the context of the message appropriately"
             "Never write @everyone or @here in your reply."
         )
 

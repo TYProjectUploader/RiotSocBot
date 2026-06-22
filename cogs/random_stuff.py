@@ -19,7 +19,7 @@ class RandomStuff(commands.Cog):
         # self.model_id = "gemini-2.5-flash" 
         # would love to use gemini but they nerfed API too much :(
         self.mistral_client = Mistral(api_key=os.getenv("MISTRAL_API"))
-        self.model_id = "mistral-medium-2505"
+        self.model_id = "mistral-medium-latest"
         #mistral-medium-latest is normal
 
         self.owolvl="none"
