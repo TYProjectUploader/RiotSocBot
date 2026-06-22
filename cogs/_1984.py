@@ -93,9 +93,9 @@ class _1984(commands.Cog):
         mention = author.mention
         safe_body = self._neutralise_mass_pings(body)
         max_body = max(0, 2000 - len(mention) - 2)
+        await channel.send(files=[discord.File('lulu_squash.png')])
         await channel.send(
-            f"{mention} Don't even try to use @ everyone or @ here in your message, it's not allowed.\n{safe_body[:max_body]}",
-            files=[discord.File('lulu_squash.png')],
+            f"{mention} Please don't try to use @ everyone or @ here in your message, it's not allowed.\n{safe_body[:max_body]}",
             allowed_mentions=self._mass_ping_allowed_mentions(author),
         )
 
@@ -199,7 +199,7 @@ class _1984(commands.Cog):
             f"{author.display_name} tried to mass-ping a discord server ({ping_type}) with this message:\n"
             f"---\n{content}\n---\n"
             "Say that their message was blocked because it was a mass ping."
-            "If it resembles a scam (phishing, fake Nitro, crypto/airdrop, free macbook/camera/ps5/etc, impersonation, urgency + suspicious links), "
+            "ONLY if the message resembles a scam (phishing, fake Nitro, crypto/airdrop, free macbook/camera/ps5/etc, impersonation, urgency + suspicious links), "
             "warn the server not to click links or trust the user who posted it"
             "Never write @everyone or @here in your reply."
         )
