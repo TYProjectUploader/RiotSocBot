@@ -305,8 +305,8 @@ class _1984(commands.Cog):
         if self.censor_pattern.search(content_lower):
             if isinstance(msg.channel, discord.TextChannel):
                 await self._replace_with_censored(msg.channel, msg)
-            await msg.channel.send("Please be mindful of sensitive language usage")
 
+            """
             user_id = msg.author.id
             today = datetime.now(timezone.utc).date()
 
@@ -322,6 +322,7 @@ class _1984(commands.Cog):
                         await member.timeout(until, reason="Repeated not censoring of words")
                     except discord.Forbidden:
                         pass
+            """
 
         if "kys" in content_lower:
             await msg.delete()
