@@ -17,7 +17,8 @@ PATCH_CHANNEL_ID = 1050307222573428756
 class PatchStrategy:
     name: str
     url: str
-    base_url: str = ""
+    base_url: str
+    channel: int
 
 class PatchScraper(commands.Cog):
     def __init__(self, bot):
@@ -30,21 +31,26 @@ class PatchScraper(commands.Cog):
             "lol": PatchStrategy(
                 "League of Legends",
                 "https://www.leagueoflegends.com/en-us/news/tags/patch-notes/",
-                "https://www.leagueoflegends.com"
+                "https://www.leagueoflegends.com",
+                1050307222573428756
             ),
             "val": PatchStrategy(
                 "Valorant",
                 "https://playvalorant.com/en-us/news/tags/patch-notes/",
-                "https://playvalorant.com"
+                "https://playvalorant.com",
+                1543987221986541668
             ),
             "tft": PatchStrategy(
                 "TFT",
-                "https://www.leagueoflegends.com/en-au/news/tags/teamfight-tactics-patch-notes/"
+                "https://www.leagueoflegends.com/en-au/news/tags/teamfight-tactics-patch-notes/",
+                "",
+                1543987412345032756
             ),
             "riftbd": PatchStrategy(
                 "Riftbound",
                 "https://riftbound.leagueoflegends.com/en-us/news",
-                "https://riftbound.leagueoflegends.com"
+                "https://riftbound.leagueoflegends.com",
+                1050307222573428756
             )
         }
         
@@ -90,14 +96,13 @@ class PatchScraper(commands.Cog):
 
     @tasks.loop(hours=6)
     async def check_patch(self):
-        channel = await get_text_channel(self.bot, PATCH_CHANNEL_ID)
-        if not channel:
-            logger.warning("check_patch: channel %s not found", PATCH_CHANNEL_ID)
-            return
-        
         persisted_data = get_persist()
         for key, strategy in self.GAMES.items():
             try:
+                channel = await get_text_channel(self.bot, strategy.channel)
+                if not channel:
+                    logger.warning("check_patch: channel %s not found", strategy.channel)
+                    continue
                 title, link = await asyncio.to_thread(self.fetch_patch, strategy)
                 last_patch = persisted_data.get(f"last_patch_{key}")
 
