@@ -71,6 +71,7 @@ def setup_logging(level: int | None = None) -> None:
 
     # Third-party noise that would otherwise bury the interesting lines.
     logging.getLogger("discord.gateway").setLevel(logging.WARNING)
+    logging.getLogger("httpx").setLevel(logging.WARNING)  # mistralai's HTTP client
     logging.getLogger("urllib3").setLevel(logging.WARNING)
     logging.getLogger("praw").setLevel(logging.WARNING)
     logging.getLogger("prawcore").setLevel(logging.WARNING)

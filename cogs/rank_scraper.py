@@ -91,7 +91,7 @@ class RankScraper(commands.Cog):
         random_stuff_cog = self.bot.get_cog("RandomStuff")
         
         response = await random_stuff_cog.mistral_client.chat.complete_async(
-            model="mistral-large-latest",
+            model="mistral-small-latest",
             messages=[{"role": "user", "content": f"say something snarky while not using quotation marks and at max a sentence or two long about the rank of {rank} in Teamfight Tactics"}],
             temperature=0.85
         )
@@ -148,8 +148,13 @@ class RankScraper(commands.Cog):
             await interaction.followup.send(embed=embed)
             #1/3 chance to trigger random ai rating
             if random.randint(1, 3) == 1:
-                comment = await self.rate_rank(tier)
-                await interaction.channel.send(comment)
+                try:
+                    comment = await self.rate_rank(tier)
+                    await interaction.channel.send(comment)
+                except Exception:
+                    logger.warning(
+                        "tftrank: AI rating failed for tier %s", tier, exc_info=True
+                    )
         except requests.Timeout:
             logger.warning("tftrank: Riot API timed out for %s on %s", username, server_low)
             await interaction.followup.send("Riot's API didn't answer in time, try again in a bit.")
