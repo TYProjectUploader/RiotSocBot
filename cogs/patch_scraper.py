@@ -50,7 +50,7 @@ class PatchScraper(commands.Cog):
                 "Riftbound",
                 "https://riftbound.leagueoflegends.com/en-us/news",
                 "https://riftbound.leagueoflegends.com",
-                1050307222573428756
+                1544233377840893992
             )
         }
         
