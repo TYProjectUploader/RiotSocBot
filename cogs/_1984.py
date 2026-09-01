@@ -11,6 +11,7 @@ from owoify.owoify import Owoness
 logger = logging.getLogger(__name__)
 
 _URL_PATTERN = re.compile(r'https?://\S+')
+_MAX_EDIT_AGE = timedelta(minutes=5)
 
 class _1984(commands.Cog):
     def __init__(self, bot):
@@ -118,7 +119,7 @@ class _1984(commands.Cog):
                     content[:2000],
                     username=author.display_name,
                     avatar_url=author.display_avatar.url,
-                    **file_kwargs,
+                    **file_kwargs
                 )
             finally:
                 await webhook.delete()
@@ -138,7 +139,9 @@ class _1984(commands.Cog):
         return True
 
     def _owoify_segment(self, text: str) -> str:
-        if not text:
+        # A whitespace-only segment matches both the leading and trailing regexes
+        # below, which would duplicate it, so return it untouched.
+        if not text or text.isspace():
             return text
         leading_match = re.match(r'^\s+', text)
         leading = leading_match.group(0) if leading_match else ''
@@ -148,9 +151,12 @@ class _1984(commands.Cog):
         return leading + (owoify(middle, Owoness.Owo) if middle else '') + trailing
 
     def _is_user_content_edit(self, payload: discord.RawMessageUpdateEvent, content: str) -> bool:
-        data = payload.data or {}
-        # Discord sends MESSAGE_UPDATE when embeds/previews attach, without edited_timestamp.
-        if 'edited_timestamp' not in data:
+        # Discord sends MESSAGE_UPDATE for embed re-unfurls, embed suppression, pins and
+        # CDN URL refreshes.
+        edited_at = payload.message.edited_at
+        if edited_at is None:
+            return False
+        if datetime.now(timezone.utc) - edited_at > _MAX_EDIT_AGE:
             return False
         cached = payload.cached_message
         if cached is not None and cached.content == content:
@@ -179,6 +185,9 @@ class _1984(commands.Cog):
             return
 
         owoified = self._owoify_preserving_urls(content)
+        if owoified == content:
+            return
+
         if await self._send_as_author(channel, message.author, owoified, message):
             await message.delete()
 
