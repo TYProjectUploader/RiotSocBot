@@ -1,10 +1,17 @@
+import asyncio
 import discord
+import logging
 import os
 import requests
 import urllib.parse
 import random
 from discord.ext import commands, tasks
 from discord import app_commands
+
+logger = logging.getLogger(__name__)
+
+# riot api timeout
+RIOT_TIMEOUT = 5
 
 class RankScraper(commands.Cog):
 
@@ -44,6 +51,40 @@ class RankScraper(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
 
+    async def _riot_get(self, url: str, api_key: str | None) -> requests.Response:
+        return await asyncio.to_thread(
+            requests.get,
+            url,
+            headers={"X-Riot-Token": api_key},
+            timeout=RIOT_TIMEOUT,
+        )
+
+    @staticmethod
+    def _split_riot_id(username: str) -> tuple[str, str] | None:
+        """Riot IDs are Name#Tag. Returns None if the tag is missing, rather than raising."""
+        game_name, _, tag_line = username.partition("#")
+        game_name, tag_line = game_name.strip(), tag_line.strip()
+        if not game_name or not tag_line:
+            return None
+        return game_name, tag_line
+
+    # Get PUUID since rito only takes puuid
+    async def _resolve_puuid(
+        self, region: str, game_name: str, tag_line: str, api_key: str | None
+    ) -> str | None:
+        acc_url = (
+            f"https://{region}.api.riotgames.com/riot/account/v1/accounts/by-riot-id/"
+            f"{urllib.parse.quote(game_name)}/{urllib.parse.quote(tag_line)}"
+        )
+        acc_res = await self._riot_get(acc_url, api_key)
+        if acc_res.status_code != 200:
+            # 404 is just a typo'd name; 401/403 means the API key has expired.
+            logger.info(
+                "riot id lookup returned %s for %s#%s", acc_res.status_code, game_name, tag_line
+            )
+            return None
+        return acc_res.json()['puuid']
+
     # Ik this is terrible and I should of made a service class but it'll get fixed at some point hopefully...
     async def rate_rank(self, rank):
         # Find the cog
@@ -67,23 +108,23 @@ class RankScraper(commands.Cog):
             await interaction.followup.send(f"Invalid region provided")
             return
 
-        game_name, tag_line = username.split("#", 1)
+        riot_id = self._split_riot_id(username)
+        if riot_id is None:
+            await interaction.followup.send("Riot IDs need a tag, like `Faker#KR1`.")
+            return
+        game_name, tag_line = riot_id
+
         platform = self.REGION_MAP[server_low]["platform"]
         region = self.REGION_MAP[server_low]["region"]
-
-        headers = {"X-Riot-Token": os.getenv("RIOT_TFT_API")}
+        api_key = os.getenv("RIOT_TFT_API")
 
         try:
-            # Get PUUID since rito only takes puuid
-            acc_url = f"https://{region}.api.riotgames.com/riot/account/v1/accounts/by-riot-id/{urllib.parse.quote(game_name)}/{tag_line}"
-            acc_res = requests.get(acc_url, headers=headers)
-            if acc_res.status_code != 200:
+            puuid = await self._resolve_puuid(region, game_name, tag_line, api_key)
+            if puuid is None:
                 return await interaction.followup.send(f"Could not find: {username}")
-            
-            puuid = acc_res.json()['puuid']
 
             tft_url = f"https://{platform}.api.riotgames.com/tft/league/v1/by-puuid/{puuid}"
-            tft_res = requests.get(tft_url, headers=headers)
+            tft_res = await self._riot_get(tft_url, api_key)
             tactian_stats = tft_res.json()
 
 
@@ -109,8 +150,13 @@ class RankScraper(commands.Cog):
             if random.randint(1, 3) == 1:
                 comment = await self.rate_rank(tier)
                 await interaction.channel.send(comment)
-        except Exception as e:
-            await interaction.followup.send(f"An error occurred: {str(e)}")
+        except requests.Timeout:
+            logger.warning("tftrank: Riot API timed out for %s on %s", username, server_low)
+            await interaction.followup.send("Riot's API didn't answer in time, try again in a bit.")
+        except Exception:
+            # Full traceback lands in data/errors.log - see logging_config.py
+            logger.exception("tftrank failed for %s on %s", username, server_low)
+            await interaction.followup.send("Something broke fetching that rank. Ping @zef.")
 
     # utilises seperate api key to pull lol rank since rito made it that way
     @app_commands.command(name="lolrank", description="Get a Summoner's rank and winrate")
@@ -123,23 +169,23 @@ class RankScraper(commands.Cog):
             await interaction.followup.send(f"Invalid region provided")
             return
 
-        game_name, tag_line = username.split("#", 1)
+        riot_id = self._split_riot_id(username)
+        if riot_id is None:
+            await interaction.followup.send("Riot IDs need a tag, like `Faker#KR1`.")
+            return
+        game_name, tag_line = riot_id
+
         platform = self.REGION_MAP[server_low]["platform"]
         region = self.REGION_MAP[server_low]["region"]
-
-        headers = {"X-Riot-Token": os.getenv("RIOT_LOL_API")}
+        api_key = os.getenv("RIOT_LOL_API")
 
         try:
-            # Get PUUID since rito only takes puuid
-            acc_url = f"https://{region}.api.riotgames.com/riot/account/v1/accounts/by-riot-id/{urllib.parse.quote(game_name)}/{tag_line}"
-            acc_res = requests.get(acc_url, headers=headers)
-            if acc_res.status_code != 200:
+            puuid = await self._resolve_puuid(region, game_name, tag_line, api_key)
+            if puuid is None:
                 return await interaction.followup.send(f"Could not find: {username}")
-            
-            puuid = acc_res.json()['puuid']
 
             lolacc_url = f"https://{platform}.api.riotgames.com/lol/league/v4/entries/by-puuid/{puuid}"
-            lolacc_res = requests.get(lolacc_url, headers=headers)
+            lolacc_res = await self._riot_get(lolacc_url, api_key)
             summoner_stats = lolacc_res.json()
 
             ranked_stats = next((item for item in summoner_stats if item["queueType"] == "RANKED_SOLO_5x5"), None)
@@ -169,8 +215,13 @@ class RankScraper(commands.Cog):
             embed.add_field(name="Winrate", value=f"{wr}% {emoji} ({wins}W / {losses}L)")
 
             await interaction.followup.send(embed=embed)
-        except Exception as e:
-            await interaction.followup.send(f"An error occurred: {str(e)}")
+        except requests.Timeout:
+            logger.warning("lolrank: Riot API timed out for %s on %s", username, server_low)
+            await interaction.followup.send("Riot's API didn't answer in time, try again in a bit.")
+        except Exception:
+            # Full traceback lands in data/errors.log - see logging_config.py
+            logger.exception("lolrank failed for %s on %s", username, server_low)
+            await interaction.followup.send("Something broke fetching that rank. Ping @zef.")
 
 async def setup(bot):
     await bot.add_cog(RankScraper(bot))
