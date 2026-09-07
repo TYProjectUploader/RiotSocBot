@@ -8,6 +8,3 @@ python-dotenv==1.1.1
 requests==2.34.2
 urllib3==2.5.0
 
-# zoneinfo is stdlib, but it needs a tz database to read; Linux has one
-# in /usr/share/zoneinfo, Windows has none required for meme_scraper
-tzdata==2025.3; sys_platform == "win32"
